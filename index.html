@@ -1,0 +1,3574 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- T25: Content Security Policy — no external network requests, no inline eval,
+     Blob URLs required for the Web Worker (worker-src blob:). Adjust frame-ancestors
+     when embedding this tool inside another page. -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'none';
+  script-src  'unsafe-inline' blob:;
+  style-src   'unsafe-inline';
+  img-src     data:;
+  worker-src  blob:;
+  connect-src 'none';
+  frame-ancestors 'self';
+">
+<title>JSON Comparator</title>
+<style>
+  :root {
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --radius: 10px; --radius-sm: 7px;
+    --shadow-sm: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.10);
+    --shadow-md: 0 4px 12px rgba(16,24,40,.08), 0 2px 6px rgba(16,24,40,.06);
+    --transition: .15s ease;
+    /* spacing scale */
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+    --maxw: 1320px;
+    /* Editor height is bounded so large documents scroll INSIDE the editor
+       instead of stretching the page and pushing the Compare bar out of reach. */
+    --editor-max: clamp(220px, 46vh, 480px);
+  }
+  [data-theme="light"] {
+    --bg: #f6f7f9; --surface: #fff; --surface-2: #f3f4f6; --surface-3: #eceef1;
+    --border: #e3e6ea; --border-strong: #d3d7dd;
+    --text: #1a1d23; --text-2: #5b6270; --text-3: #8a909c;
+    --accent: #3b6ef5; --accent-weak: #ecf1fe;
+    --added: #1a7f37; --added-bg: #e7f5ec; --added-line: #c9ebd4;
+    --removed: #cf222e; --removed-bg: #fdeced; --removed-line: #f6cdd0;
+    --changed: #9a6700; --changed-bg: #fdf6e3; --changed-line: #f3e7bd;
+    --modified: #7c3aed; --modified-bg: #f3eefe; --modified-line: #e3d6fb;
+    --string: #0a7c5a; --number: #b35900; --bool: #6f42c1; --null: #8a909c;
+  }
+  [data-theme="dark"] {
+    --bg: #0d1017; --surface: #161a22; --surface-2: #1c212b; --surface-3: #232936;
+    --border: #2a303c; --border-strong: #353c4a;
+    --text: #e7eaf0; --text-2: #9aa3b2; --text-3: #6b7383;
+    --accent: #4d82ff; --accent-weak: #182238;
+    --added: #3fb950; --added-bg: #11261a; --added-line: #1c3a28;
+    --removed: #f85149; --removed-bg: #2b1416; --removed-line: #45211f;
+    --changed: #d2a008; --changed-bg: #2a2412; --changed-line: #43391a;
+    --modified: #a371f7; --modified-bg: #1d1830; --modified-line: #2f2547;
+    --string: #7ee2b8; --number: #ffb86b; --bool: #c9a7ff; --null: #6b7383;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: var(--font); background: var(--bg); color: var(--text);
+    font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px 64px; }
+
+  .appbar {
+    position: sticky; top: 0; z-index: 30;
+    background: color-mix(in srgb, var(--bg) 86%, transparent);
+    backdrop-filter: saturate(160%) blur(10px);
+    border-bottom: 1px solid var(--border); margin-bottom: 22px;
+  }
+  .appbar-inner { max-width: var(--maxw); margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; gap: 14px; }
+  .logo { width: 34px; height: 34px; border-radius: 9px; flex: none; background: linear-gradient(135deg, var(--accent), #7aa2ff); display: grid; place-items: center; color: #fff; box-shadow: var(--shadow-sm); }
+  .logo svg { width: 19px; height: 19px; }
+  .titles h1 { font-size: 16px; font-weight: 650; margin: 0; letter-spacing: -.01em; }
+  .titles p { font-size: 12.5px; color: var(--text-2); margin: 1px 0 0; }
+  .appbar .spacer { flex: 1; }
+  @media (max-width: 560px) { .titles p { display: none; } }
+
+  /* Collapsed-inputs bar: after a compare the editors fold away and the
+     comparison takes focus; this slim bar summarizes the inputs and offers a
+     one-click way back to editing. */
+  .inputs-bar {
+    display: flex; align-items: center; gap: 12px;
+    margin: 0 0 6px; padding: 10px 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow-sm);
+    animation: inputsBarIn var(--transition) ease;
+  }
+  @keyframes inputsBarIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .inputs-bar .ib-icon { width: 16px; height: 16px; color: var(--text-3); flex: none; }
+  .inputs-bar .ib-summary { font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .inputs-bar .ib-summary b { color: var(--text); font-weight: 650; }
+  .inputs-bar .ib-spacer { flex: 1 1 auto; }
+  .icon-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; display: grid; place-items: center; transition: var(--transition); }
+  .icon-btn:hover { color: var(--text); border-color: var(--border-strong); }
+  .icon-btn svg { width: 18px; height: 18px; }
+
+  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 800px) { .panes { grid-template-columns: 1fr; } }
+  /* T24: three-way mode — add a third "Base" pane */
+  .panes.three-way { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 900px) { .panes.three-way { grid-template-columns: 1fr; } }
+  .pane.base .dot { background: var(--text-3); }
+  /* Three-way merge result table */
+  .tw-row { display: grid; grid-template-columns: 40px minmax(160px,28%) 1fr 1fr 1fr; border-bottom: 1px solid var(--border); min-height: 40px; box-sizing: border-box; }
+  .tw-col-headers { display: grid; grid-template-columns: 40px minmax(160px,28%) 1fr 1fr 1fr; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; letter-spacing:.05em; text-transform:uppercase; color: var(--text-3); }
+  .tw-col-headers div { padding: 9px 14px; }
+  .tw-cell { padding: 9px 14px; min-width: 0; font-family: var(--mono); font-size: 12.5px; }
+  .tw-kind { display: grid; place-items: center; font-weight: 700; font-size: 11px; }
+  .tw-row.tw-conflict  .tw-kind { background: var(--removed-bg);  color: var(--removed); }
+  .tw-row.tw-left-only .tw-kind { background: var(--added-bg);    color: var(--added);   }
+  .tw-row.tw-right-only .tw-kind { background: var(--changed-bg); color: var(--changed); }
+  .tw-row.tw-both-same  .tw-kind { background: var(--modified-bg); color: var(--modified); }
+  .tw-conflict-label  { font-size: 10px; }
+  .tw-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tw-stat { display: inline-flex; align-items: baseline; gap: 5px; padding: 5px 11px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1px solid transparent; }
+  .tw-stat.conflict  { color: var(--removed); background: var(--removed-bg); border-color: var(--removed-line); }
+  .tw-stat.left-only { color: var(--added);   background: var(--added-bg);   border-color: var(--added-line);   }
+  .tw-stat.right-only { color: var(--changed); background: var(--changed-bg); border-color: var(--changed-line); }
+  .tw-stat.both-same  { color: var(--modified); background: var(--modified-bg); border-color: var(--modified-line); }
+  .pane { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; transition: border-color var(--transition), box-shadow var(--transition); }
+  .pane:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+  .pane-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .pane.source .dot { background: var(--removed); }
+  .pane.target .dot { background: var(--added); }
+  .pane-head .name { font-weight: 650; font-size: 13px; }
+  .pane-head .side-tag { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+  .pane-tools { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+  .pane-head .count { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; margin-right: 4px; white-space: nowrap; }
+  .pane-head .mini { border: none; background: transparent; color: var(--text-2); cursor: pointer; font-size: 12px; padding: 4px 8px; border-radius: 6px; transition: var(--transition); display: inline-flex; align-items: center; gap: 5px; }
+  .pane-head .mini svg { width: 13px; height: 13px; }
+  .pane-head .mini:hover { background: var(--surface-3); color: var(--text); }
+  textarea { width: 100%; min-height: 250px; border: none; background: var(--surface); color: var(--text); font-family: var(--mono); font-size: 12.5px; line-height: 1.65; padding: 14px; resize: vertical; display: block; }
+  textarea:focus { outline: none; }
+  textarea::placeholder { color: var(--text-3); }
+
+  /* sticky compare toolbar — stays reachable while scrolling results */
+  .toolbar {
+    position: sticky; top: 62px; z-index: 18;
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    backdrop-filter: saturate(160%) blur(10px);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    margin: 18px 0 6px; padding: 10px 12px;
+  }
+  .actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .tb-group { display: inline-flex; align-items: center; gap: 8px; }
+  .tb-spacer { flex: 1 1 auto; min-width: 8px; }
+  .tb-divider { width: 1px; align-self: stretch; min-height: 24px; background: var(--border); margin: 0 2px; }
+  .tb-secondary { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: 13.5px; font-weight: 600; border-radius: 8px; padding: 10px 18px; border: 1px solid var(--border); background: var(--surface); color: var(--text); transition: var(--transition); }
+  .btn:hover { border-color: var(--border-strong); }
+  .btn svg { width: 16px; height: 16px; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: var(--shadow-sm); }
+  .btn.primary:hover { filter: brightness(1.06); }
+  .btn.ghost { background: transparent; color: var(--text-2); }
+  .check { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-2); cursor: pointer; user-select: none; }
+  .check input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+
+  .results-wrap { margin-top: 24px; }
+  .results-head {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 12px; flex-wrap: wrap;
+    position: sticky; top: 132px; z-index: 16;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: saturate(160%) blur(8px);
+    padding: 8px 0;
+  }
+  .stats { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .diff-total { font-size: 13px; font-weight: 700; color: var(--text); margin-right: 2px; font-variant-numeric: tabular-nums; }
+  .stat { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 13px; border-radius: 20px; font-size: 12.5px; font-weight: 600; border: 1px solid transparent; }
+  .stat .n { font-variant-numeric: tabular-nums; font-size: 13.5px; font-weight: 800; }
+  .stat.unchanged { color: var(--text-3); background: var(--surface-2); border-color: var(--border); }
+  .stat.added { color: var(--added); background: var(--added-bg); border-color: var(--added-line); }
+  .stat.removed { color: var(--removed); background: var(--removed-bg); border-color: var(--removed-line); }
+  .stat.changed { color: var(--changed); background: var(--changed-bg); border-color: var(--changed-line); }
+  .stat.equal { color: var(--added); background: var(--added-bg); border-color: var(--added-line); }
+  .rhead-controls { margin-left: auto; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .segmented { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 3px; }
+  .segmented button { border: none; background: transparent; cursor: pointer; color: var(--text-2); font-size: 12.5px; font-weight: 600; padding: 6px 14px; border-radius: 6px; transition: var(--transition); display: inline-flex; align-items: center; gap: 6px; }
+  .segmented button svg { width: 14px; height: 14px; }
+  .segmented button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+
+  .subbar { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+  .legend .li-added { background: var(--added); } .legend .li-removed { background: var(--removed); }
+  .legend .li-changed { background: var(--changed); } .legend .li-modified { background: var(--modified); }
+  .tree-tools { margin-left: auto; display: flex; gap: 6px; }
+  .tree-tools button { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 7px; cursor: pointer; transition: var(--transition); }
+  .tree-tools button:hover { color: var(--text); border-color: var(--border-strong); }
+
+  .results { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; }
+
+  /* ---- Table view ---- */
+  .row { display: grid; grid-template-columns: 40px 22px minmax(170px, 32%) 1fr; border-bottom: 1px solid var(--border); min-height: 40px; box-sizing: border-box; }
+  .row:last-child { border-bottom: none; }
+  .gutter { display: grid; place-items: center; font-family: var(--mono); font-weight: 700; font-size: 13px; user-select: none; }
+  .row.added .gutter { background: var(--added-bg); color: var(--added); }
+  .row.removed .gutter { background: var(--removed-bg); color: var(--removed); }
+  .row.changed .gutter, .row.type_changed .gutter { background: var(--changed-bg); color: var(--changed); }
+  .row.equal .gutter { background: var(--surface-2); color: var(--text-3); }
+  .cell { padding: 9px 14px; min-width: 0; }
+  .cell.path { font-family: var(--mono); font-size: 12.5px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); word-break: break-all; display: flex; align-items: center; gap: 8px; }
+  .cell.value { font-family: var(--mono); font-size: 12.5px; }
+  .col-headers { display: grid; grid-template-columns: 40px 22px minmax(170px, 32%) 1fr; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); }
+  .col-headers div { padding: 9px 14px; }
+  .col-headers .c-path { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+
+  /* ---- Tree view ---- */
+  .tree { padding: 10px 8px 14px; font-family: var(--mono); font-size: 13px; overflow-x: auto; }
+  .tnode { position: relative; }
+  .trow { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 6px; white-space: nowrap; min-height: 34px; box-sizing: border-box; }
+  .tnode[data-container] > .trow { cursor: pointer; }
+  .trow:hover { background: var(--surface-2); }
+  .ttoggle { width: 14px; flex: none; text-align: center; color: var(--text-3); font-size: 10px; }
+  .tnode[data-container] > .trow .ttoggle::before { content: "▾"; }
+  .tnode[data-container].collapsed > .trow .ttoggle::before { content: "▸"; }
+  .tnode[data-container].collapsed > .tchildren { display: none; }
+  .tkey { font-weight: 600; color: var(--text); }
+  .tcolon { color: var(--text-3); margin-left: -3px; }
+  .tmeta { color: var(--text-3); font-size: 11.5px; }
+  .tellipsis { color: var(--text-3); }
+  .tnode[data-container]:not(.collapsed) > .trow .tellipsis { display: none; }
+  .tcount { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 20px; color: var(--modified); background: var(--modified-bg); border: 1px solid var(--modified-line); }
+  .tchildren { margin-left: 9px; padding-left: 13px; border-left: 1px solid var(--border); }
+
+  /* node coloring by kind */
+  .tnode.k-added > .trow .tkey { color: var(--added); }
+  .tnode.k-removed > .trow .tkey { color: var(--removed); }
+  .tnode.k-changed > .trow .tkey { color: var(--changed); }
+  .tnode.k-modified > .trow .tkey { color: var(--modified); }
+  .tnode.k-added > .trow { background: var(--added-bg); }
+  .tnode.k-removed > .trow { background: var(--removed-bg); }
+  .tnode.k-changed > .trow { background: var(--changed-bg); }
+  .tnode.k-added > .tchildren { border-left-color: var(--added-line); }
+  .tnode.k-removed > .tchildren { border-left-color: var(--removed-line); }
+  .tnode.k-changed > .tchildren { border-left-color: var(--changed-line); }
+  .tnode.k-modified > .tchildren { border-left-color: var(--modified-line); }
+  .tnode.k-added > .trow:hover, .tnode.k-removed > .trow:hover, .tnode.k-changed > .trow:hover { filter: brightness(.97); }
+
+  /* leaf values */
+  .val { display: inline-block; padding: 0 5px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; }
+  .val.from { color: var(--removed); background: var(--removed-bg); }
+  .val.to { color: var(--added); background: var(--added-bg); }
+  .val.plain { background: transparent; padding: 0; }
+  .val.plain.t-string { color: var(--string); } .val.plain.t-number { color: var(--number); }
+  .val.plain.t-boolean { color: var(--bool); } .val.plain.t-null { color: var(--null); }
+  .arrow { color: var(--text-3); margin: 0 6px; }
+  .ttype { color: var(--text-3); font-size: 10.5px; margin-left: 3px; }
+  .badge { font-size: 10px; font-weight: 700; letter-spacing: .04em; padding: 2px 6px; border-radius: 5px; flex: none; text-transform: uppercase; }
+  .badge.added { color: var(--added); background: var(--added-bg); }
+  .badge.removed { color: var(--removed); background: var(--removed-bg); }
+  .badge.changed, .badge.type_changed { color: var(--changed); background: var(--changed-bg); }
+  .badge.equal { color: var(--text-3); background: var(--surface-3); }
+
+  /* selection */
+  .cbx { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; margin: 0; vertical-align: middle; }
+  .cbx-spacer { width: 15px; flex: none; display: inline-block; }
+  .selcell, .selhead { display: grid; place-items: center; }
+  .row .selcell, .col-headers .selhead { border-right: 1px solid var(--border); }
+
+  .selbar { display: flex; align-items: center; gap: 10px; padding: 9px 14px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); flex-wrap: wrap; }
+  .selbar .selinfo { font-size: 13px; color: var(--text-2); }
+  .selbar .selinfo b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .selbar .sep { flex: 1; }
+  .linkbtn { border: none; background: transparent; color: var(--accent); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+  .linkbtn:hover { background: var(--accent-weak); }
+  .linkbtn:disabled { color: var(--text-3); cursor: default; background: transparent; }
+  .btn.sm { padding: 7px 14px; font-size: 12.5px; }
+  .btn.sm:disabled { opacity: .5; cursor: default; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(10,12,18,.55); display: grid; place-items: center; z-index: 50; padding: 24px; }
+  .modal { width: min(900px, 100%); max-height: 86vh; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); overflow: hidden; }
+  .modal-head { display: flex; align-items: center; gap: 10px; padding: 15px 18px; border-bottom: 1px solid var(--border); }
+  .modal-head h3 { margin: 0; font-size: 15px; font-weight: 650; }
+  .modal-head .close { margin-left: auto; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 18px; cursor: pointer; line-height: 1; }
+  .modal-head .close:hover { color: var(--text); border-color: var(--border-strong); }
+  .modal-actions { display: flex; gap: 8px; padding: 13px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .modal-body { padding: 16px 18px; overflow: auto; }
+  table.share { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.share th, table.share td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; vertical-align: top; }
+  table.share th { background: var(--surface-2); font-weight: 600; color: var(--text-2); position: sticky; top: 0; }
+  table.share td.tpath, table.share td.tval { font-family: var(--mono); word-break: break-word; }
+  table.share .pill { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 1px 6px; border-radius: 5px; }
+  table.share .pill.added { color: var(--added); background: var(--added-bg); }
+  table.share .pill.removed { color: var(--removed); background: var(--removed-bg); }
+  table.share .pill.changed, table.share .pill.type_changed { color: var(--changed); background: var(--changed-bg); }
+  .share .muted { color: var(--text-3); }
+
+  .toast { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); font-size: 13px; font-weight: 600; padding: 10px 16px; border-radius: 8px; box-shadow: var(--shadow-md); z-index: 70; transition: opacity .2s; }
+
+  /* library */
+  .iconwrap { position: relative; }
+  .badge-count { position: absolute; top: -3px; right: -3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; display: grid; place-items: center; pointer-events: none; }
+  .drawer-overlay { position: fixed; inset: 0; background: rgba(10,12,18,.45); z-index: 55; display: flex; justify-content: flex-end; }
+  .drawer { width: min(420px, 100%); height: 100%; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; box-shadow: var(--shadow-md); }
+  .drawer-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+  .drawer-head h3 { margin: 0; font-size: 15px; font-weight: 650; }
+  .drawer-head .close, .modal-head .close { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 18px; cursor: pointer; line-height: 1; }
+  .drawer-head .close { margin-left: auto; }
+  .drawer-head .close:hover, .modal-head .close:hover { color: var(--text); border-color: var(--border-strong); }
+  .drawer-tabs { display: flex; gap: 2px; padding: 0 18px; border-bottom: 1px solid var(--border); }
+  .drawer-tabs button { flex: 1; padding: 10px 8px; font-size: 13px; font-weight: 600; color: var(--text-3); background: transparent; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .drawer-tabs button svg { width: 15px; height: 15px; }
+  .drawer-tabs button:hover { color: var(--text); }
+  .drawer-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .lib-item .ifolder { font-size: 11px; color: var(--text-3); }
+  .drawer-tools { display: flex; gap: 8px; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+  .drawer-body { padding: 6px 12px 24px; overflow: auto; flex: 1; }
+  .lib-folder { border: 1px solid var(--border); border-radius: 9px; margin: 8px 4px; overflow: hidden; }
+  .lib-folder-head { display: flex; align-items: center; gap: 9px; padding: 11px 12px; cursor: pointer; user-select: none; }
+  .lib-folder-head:hover { background: var(--surface-2); }
+  .fchev { color: var(--text-3); font-size: 10px; width: 10px; flex: none; transition: transform .15s; }
+  .lib-folder.open .fchev { transform: rotate(90deg); }
+  .ficon { width: 16px; height: 16px; color: var(--text-3); flex: none; }
+  .fname { font-weight: 600; font-size: 13.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fcount { margin-left: auto; font-size: 11px; font-weight: 700; color: var(--text-2); background: var(--surface-3); border-radius: 20px; padding: 2px 9px; flex: none; }
+  .lib-folder-head .factions { margin-left: 6px; display: flex; gap: 4px; flex: none; }
+  .lib-items { display: none; padding: 4px 8px 8px; border-top: 1px solid var(--border); background: var(--surface-2); }
+  .lib-folder.open .lib-items { display: block; }
+  .lib-empty-sm { color: var(--text-3); font-size: 12px; padding: 12px; text-align: center; }
+  .lib-item { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; margin: 6px 4px; background: var(--surface); transition: var(--transition); }
+  .lib-item:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+  .lib-item .info { min-width: 0; flex: 1; cursor: pointer; }
+  .lib-item .iname { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lib-item .imeta { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
+  .lib-item .iactions { display: flex; gap: 4px; align-items: center; flex: none; }
+  .miniico { width: 28px; height: 28px; border: 1px solid var(--border); background: var(--surface); border-radius: 7px; color: var(--text-2); cursor: pointer; display: grid; place-items: center; padding: 0; }
+  .miniico:hover { color: var(--text); border-color: var(--border-strong); }
+  .miniico svg { width: 14px; height: 14px; }
+  .lib-item select { font-size: 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-2); padding: 4px; max-width: 96px; }
+  .lib-empty { text-align: center; color: var(--text-3); font-size: 13px; padding: 44px 18px; line-height: 1.6; }
+
+  #saveModal { z-index: 65; }
+  .form-row { margin-bottom: 14px; }
+  .form-row label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-2); margin-bottom: 5px; }
+  .form-row input, .form-row select { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 13.5px; font-family: var(--font); }
+  .form-row input:focus, .form-row select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+
+  .state { padding: 56px 24px; text-align: center; }
+  .state svg { width: 40px; height: 40px; color: var(--text-3); margin-bottom: 12px; }
+  .state h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+  .state p { margin: 0; color: var(--text-2); font-size: 13px; }
+  .banner { display: flex; gap: 10px; align-items: flex-start; background: var(--removed-bg); border: 1px solid var(--removed-line); color: var(--removed); padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-top: 18px; }
+  .banner.warn { background: var(--changed-bg); border-color: var(--changed-line); color: var(--changed); }
+  .banner svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+  .banner pre { margin: 2px 0 0; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; }
+  .hidden { display: none !important; }
+
+  /* ---- T21: input-size guard ---- */
+  .count.warn-size   { color: var(--changed) !important; font-weight: 700; }
+  .count.danger-size { color: var(--removed) !important; font-weight: 700; }
+  .banner.info { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); }
+
+  /* ---- T20: virtual scroll ---- */
+  /* overflow-anchor:none stops the browser from re-adjusting scrollTop when the
+     virtualized row body is swapped on scroll — that adjustment would re-fire
+     scroll and cause runaway/jumpy scrolling. */
+  .results.virt-active { overflow-y: auto; max-height: 72vh; position: relative; overflow-anchor: none; }
+  .vt-col-headers { position: sticky; top: 0; z-index: 2; }
+  /* Virtual tree: indentation via padding-left; no .tchildren nesting */
+  .vt-row { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 6px; white-space: nowrap; min-height: 34px; box-sizing: border-box; cursor: pointer; }
+  .vt-row:hover { background: var(--surface-2); }
+  .vt-leaf { cursor: default; }
+  .vt-leaf:hover { background: transparent; }
+  .vt-leaf.k-added > .trow, .vt-row.k-added { background: var(--added-bg); }
+  .vt-row.k-removed { background: var(--removed-bg); }
+  .vt-row.k-changed  { background: var(--changed-bg); }
+  .vt-row.k-added .tkey  { color: var(--added); }
+  .vt-row.k-removed .tkey { color: var(--removed); }
+  .vt-row.k-changed .tkey  { color: var(--changed); }
+
+  /* ---- T19: off-thread diff progress ---- */
+  .diff-progress { display: flex; align-items: center; gap: 12px; padding: 24px 2px; }
+  .diff-spinner { width: 18px; height: 18px; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: dp-spin .7s linear infinite; flex: none; }
+  @keyframes dp-spin { to { transform: rotate(360deg); } }
+  .diff-progress-text { font-size: 13.5px; color: var(--text-2); }
+  .diff-cancel-btn { background: none; border: none; cursor: pointer; color: var(--text-3); font-size: 12.5px; padding: 3px 8px; border-radius: 6px; text-decoration: underline; transition: color var(--transition); }
+  .diff-cancel-btn:hover { color: var(--removed); }
+
+  /* ---- T18: Accessibility — focus-visible, AA contrast, skip link ---- */
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  .skip-link { position: absolute; left: -999px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+  .skip-link:focus { position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 100; background: var(--accent); color: #fff; padding: 10px 18px; border-radius: 0 0 8px 8px; width: auto; height: auto; font-weight: 700; font-size: 14px; }
+  /* AA contrast fix for amber "changed": darken on light mode */
+  [data-theme="light"] { --changed: #7a5200; }
+  /* Accessible inline dialog (replaces prompt/confirm) */
+  .a11y-dialog-overlay { position: fixed; inset: 0; background: rgba(10,12,18,.6); display: grid; place-items: center; z-index: 80; padding: 24px; }
+  .a11y-dialog { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-md); width: min(400px,100%); padding: 20px 22px 18px; }
+  .a11y-dialog h3 { margin: 0 0 12px; font-size: 15px; font-weight: 650; }
+  .a11y-dialog p  { margin: 0 0 16px; font-size: 13px; color: var(--text-2); }
+  .a11y-dialog input { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 13.5px; margin-bottom: 16px; }
+  .a11y-dialog input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+  .a11y-dialog-btns { display: flex; gap: 8px; justify-content: flex-end; }
+  /* Tree keyboard nav highlight */
+  .tnode:focus > .trow, .trow:focus { background: var(--accent-weak) !important; outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
+
+  /* ---- Raw text diff view (T13) ---- */
+  .raw-view { padding: 0; overflow: auto; max-height: 70vh; }
+  .raw-unified { font-family: var(--mono); font-size: 12.5px; line-height: 1.55; }
+  .raw-line { display: flex; min-height: 1.55em; }
+  .raw-gutter { flex: none; width: 38px; text-align: right; padding: 0 8px; user-select: none; color: var(--text-3); font-size: 11px; border-right: 1px solid var(--border); line-height: 1.55em; }
+  .raw-code { flex: 1; padding: 0 10px; white-space: pre-wrap; word-break: break-all; line-height: 1.55em; }
+  .raw-line.r-added   { background: var(--added-bg); }
+  .raw-line.r-removed { background: var(--removed-bg); }
+  .raw-line.r-added   .raw-gutter { background: var(--added-bg);   color: var(--added); border-right-color: var(--added-line); }
+  .raw-line.r-removed .raw-gutter { background: var(--removed-bg); color: var(--removed); border-right-color: var(--removed-line); }
+  .raw-line.r-added   .raw-code { color: var(--added); }
+  .raw-line.r-removed .raw-code { color: var(--removed); }
+  .raw-line.r-equal   .raw-code { color: var(--text-2); }
+  .raw-split { display: grid; grid-template-columns: 1fr 1fr; }
+  .raw-split-pane { overflow: auto; border-right: 1px solid var(--border); }
+  .raw-split-pane:last-child { border-right: none; }
+  .raw-split-head { font-size: 11.5px; font-weight: 600; color: var(--text-3); padding: 6px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: .05em; }
+  .raw-toggle { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 2px; gap: 2px; }
+  .raw-toggle button { border: none; background: transparent; cursor: pointer; color: var(--text-2); font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 5px; transition: var(--transition); }
+  .raw-toggle button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+
+  /* ---- Syntax highlighting + Minify (T15) ---- */
+  .editor-wrap { display: grid; }
+  .editor-wrap > * { grid-row: 1; grid-column: 1; }
+  .editor-highlight {
+    padding: 14px; font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
+    white-space: pre-wrap; word-break: break-all; word-wrap: break-word;
+    pointer-events: none; background: var(--surface); overflow: hidden;
+    min-height: 250px; max-height: var(--editor-max); z-index: 0; margin: 0; border: none;
+  }
+  .editor-wrap textarea { background: transparent; color: transparent; caret-color: var(--text); z-index: 1; min-height: 250px; max-height: var(--editor-max); overflow: auto; }
+  .editor-wrap textarea::placeholder { color: var(--text-3); }
+  /* Large-input fallback: skip highlight and show text normally */
+  .editor-wrap.no-hl textarea { background: var(--surface); color: var(--text); }
+
+  /* ---- Navigation (T12) ---- */
+  .nav-ctrl { display: flex; align-items: center; gap: 2px; }
+  .nav-pos { font-size: 11.5px; color: var(--text-2); min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; }
+  .diff-focused { animation: nav-flash 1.4s ease forwards; border-radius: 5px; }
+  @keyframes nav-flash {
+    0%  { outline: 2px solid var(--accent); outline-offset: 2px; }
+    55% { outline: 2px solid var(--accent); outline-offset: 2px; }
+    100%{ outline: 2px solid transparent; outline-offset: 2px; }
+  }
+
+  /* ---- Options panel (T14) ---- */
+  .options-panel { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 6px; display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: flex-start; }
+  .opt-row { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-2); }
+  .opt-label { white-space: nowrap; font-size: 12.5px; }
+  .opt-input { padding: 5px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); font-size: 12.5px; font-family: var(--font); }
+  .opt-input[type="text"]   { width: 190px; }
+  .opt-input[type="number"] { width: 80px; }
+  .opt-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+  .opt-active { color: var(--accent); font-weight: 700; }
+
+  /* ---- Filter bar (T11) ---- */
+  .filterbar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
+  .filter-fields { display: flex; gap: 8px; flex: 1; min-width: 0; flex-wrap: wrap; }
+  .filter-input { flex: 1; min-width: 110px; max-width: 200px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); font-size: 12.5px; font-family: var(--font); transition: var(--transition); }
+  .filter-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+  .filter-input::placeholder { color: var(--text-3); }
+  /* ---- Change-type filter chips (single source of truth — toggle on/off) ---- */
+  .filter-types { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .ftype-chip {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;
+    font-size: 12px; font-weight: 600; line-height: 1; padding: 6px 11px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-3);
+    transition: var(--transition);
+  }
+  .ftype-chip input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .ftype-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; opacity: .4; transition: var(--transition); }
+  .ftype-chip:hover { border-color: var(--border-strong); color: var(--text-2); }
+  .ftype-chip:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+  /* active (checkbox checked) — filled with the change-type colour */
+  .ftype-chip.on .dot { opacity: 1; }
+  .ftype-chip.on.ft-added   { color: var(--added);   background: var(--added-bg);   border-color: var(--added-line);   }
+  .ftype-chip.on.ft-removed { color: var(--removed); background: var(--removed-bg); border-color: var(--removed-line); }
+  .ftype-chip.on.ft-changed { color: var(--changed); background: var(--changed-bg); border-color: var(--changed-line); }
+  .filter-count { font-size: 11.5px; color: var(--text-3); margin-left: auto; white-space: nowrap; }
+
+  /* ---- Row copy actions (path / value) — revealed on hover ---- */
+  .row, .trow, .vt-row { position: relative; }
+  .row-actions {
+    position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+    display: none; gap: 3px; z-index: 3;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    backdrop-filter: blur(3px); border-radius: 7px; padding: 2px;
+  }
+  .row:hover .row-actions, .trow:hover .row-actions, .vt-row:hover .row-actions,
+  .row:focus-within .row-actions, .trow:focus-within .row-actions { display: inline-flex; }
+  .row-act {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+    cursor: pointer; font-size: 10.5px; font-weight: 600; padding: 3px 8px; border-radius: 6px;
+    display: inline-flex; align-items: center; gap: 4px; transition: var(--transition); white-space: nowrap;
+  }
+  .row-act:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-weak); }
+  .row-act svg { width: 11px; height: 11px; }
+
+  /* ---- Keyboard-shortcuts help popover ---- */
+  .shortcuts-pop {
+    position: fixed; top: 60px; right: 24px; z-index: 60;
+    width: min(320px, calc(100vw - 32px));
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: var(--radius); box-shadow: var(--shadow-md); padding: 16px 18px;
+  }
+  .shortcuts-pop h3 { margin: 0 0 10px; font-size: 14px; font-weight: 650; }
+  .shortcuts-pop dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: 7px 12px; align-items: center; }
+  .shortcuts-pop dt { font-size: 12.5px; color: var(--text-2); }
+  .shortcuts-pop dd { margin: 0; text-align: right; }
+  .shortcuts-pop kbd {
+    font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--text);
+    background: var(--surface-2); border: 1px solid var(--border-strong);
+    border-bottom-width: 2px; border-radius: 5px; padding: 2px 6px; white-space: nowrap;
+  }
+
+  /* ---- Empty-state polish ---- */
+  .state .state-actions { margin-top: 16px; display: inline-flex; gap: 8px; }
+  .state .hint { margin-top: 14px; font-size: 12px; color: var(--text-3); }
+  .state .hint kbd { font-family: var(--mono); font-size: 11px; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 4px; padding: 1px 5px; }
+
+  @media (max-width: 820px) {
+    .toolbar { position: static; }
+    .results-head { position: static; }
+    .pane-head .count { display: none; }
+  }
+</style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <header class="appbar" role="banner">
+    <div class="appbar-inner">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2h1"/><path d="M16 3h1a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-1"/></svg>
+      </div>
+      <div class="titles">
+        <h1>JSON Comparator</h1>
+        <p>Compare two documents field by field — table or tree view</p>
+      </div>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="helpBtn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+      </button>
+      <button class="icon-btn" id="saveBtn" title="Save this comparison to your library" aria-label="Save comparison">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+      </button>
+      <span class="iconwrap">
+        <button class="icon-btn" id="libBtn" title="Saved comparisons" aria-label="Saved comparisons">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6l2 3h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
+        </button>
+        <span class="badge-count hidden" id="libCount">0</span>
+      </span>
+      <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="wrap" id="main-content" role="main">
+    <div class="panes">
+      <div class="pane source">
+        <div class="pane-head">
+          <span class="dot"></span><span class="name">Source</span><span class="side-tag">before</span>
+          <span class="pane-tools">
+            <span class="count" id="srcCount">0 chars</span>
+            <button class="mini" data-target="source" data-act="upload" title="Load a .json file into this pane">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>Upload
+            </button>
+            <button class="mini" data-target="source" data-act="paste">Paste</button>
+            <button class="mini" data-target="source" data-act="format">Format</button>
+            <button class="mini" data-target="source" data-act="minify">Minify</button>
+            <button class="mini" data-target="source" data-act="copy">Copy</button>
+            <button class="mini" data-target="source" data-act="clear">Clear</button>
+          </span>
+        </div>
+        <input type="file" class="pane-file" data-target="source" accept=".json,.jsonc,.json5,.ndjson,application/json,text/plain" hidden>
+        <div class="editor-wrap">
+          <pre class="editor-highlight" id="srcHighlight" aria-hidden="true"></pre>
+          <textarea id="source" spellcheck="false" placeholder="Paste or type your Source JSON here…"></textarea>
+        </div>
+      </div>
+      <div class="pane target">
+        <div class="pane-head">
+          <span class="dot"></span><span class="name">Target</span><span class="side-tag">after</span>
+          <span class="pane-tools">
+            <span class="count" id="tgtCount">0 chars</span>
+            <button class="mini" data-target="target" data-act="upload" title="Load a .json file into this pane">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>Upload
+            </button>
+            <button class="mini" data-target="target" data-act="paste">Paste</button>
+            <button class="mini" data-target="target" data-act="format">Format</button>
+            <button class="mini" data-target="target" data-act="minify">Minify</button>
+            <button class="mini" data-target="target" data-act="copy">Copy</button>
+            <button class="mini" data-target="target" data-act="clear">Clear</button>
+          </span>
+        </div>
+        <input type="file" class="pane-file" data-target="target" accept=".json,.jsonc,.json5,.ndjson,application/json,text/plain" hidden>
+        <div class="editor-wrap">
+          <pre class="editor-highlight" id="tgtHighlight" aria-hidden="true"></pre>
+          <textarea id="target" spellcheck="false" placeholder="Paste or type your Target JSON here…"></textarea>
+        </div>
+      </div>
+      <!-- T24: Base pane — shown only when 3-Way mode is active -->
+      <div class="pane base hidden" id="basePane">
+        <div class="pane-head">
+          <span class="dot"></span><span class="name">Base</span><span class="side-tag">ancestor</span>
+          <span class="pane-tools">
+            <span class="count" id="baseCount">0 chars</span>
+            <button class="mini" data-target="base" data-act="upload" title="Load a .json file into this pane">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>Upload
+            </button>
+            <button class="mini" data-target="base" data-act="paste">Paste</button>
+            <button class="mini" data-target="base" data-act="format">Format</button>
+            <button class="mini" data-target="base" data-act="copy">Copy</button>
+            <button class="mini" data-target="base" data-act="clear">Clear</button>
+          </span>
+        </div>
+        <input type="file" class="pane-file" data-target="base" accept=".json,.jsonc,.json5,.ndjson,application/json,text/plain" hidden>
+        <div class="editor-wrap">
+          <pre class="editor-highlight" id="baseHighlight" aria-hidden="true"></pre>
+          <textarea id="base" spellcheck="false" placeholder='Paste the common ancestor JSON here…'></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="inputs-bar hidden" id="inputsBar">
+      <svg class="ib-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+      <span class="ib-summary" id="inputsSummary"></span>
+      <span class="ib-spacer"></span>
+      <button class="btn ghost sm" id="editInputsBtn" title="Show the editors again">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+        Edit inputs
+      </button>
+    </div>
+
+    <div class="toolbar">
+      <div class="actions">
+        <div class="tb-group">
+          <button class="btn primary" id="compareBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>
+            Compare
+          </button>
+          <button class="btn ghost" id="newSessionBtn" title="Clear both documents and start fresh">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6M9 15h6"/></svg>
+            New session
+          </button>
+          <button class="btn ghost" id="swapBtn" title="Swap source and target">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+            Swap
+          </button>
+        </div>
+        <span class="tb-spacer"></span>
+        <div class="tb-secondary">
+          <label class="check"><input type="checkbox" id="unordered"> Unordered arrays</label>
+          <button class="btn ghost" id="optionsBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.1 4.9a9 9 0 0 1 0 14.2M4.9 4.9a9 9 0 0 0 0 14.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2"/></svg>
+            Options
+          </button>
+          <span class="tb-divider"></span>
+          <button class="btn ghost" id="saveSession" title="Save both JSONs + settings to a file">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+            Save
+          </button>
+          <button class="btn ghost" id="loadSession" title="Load a saved session file">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>
+            Load
+          </button>
+          <input type="file" id="sessionFile" accept=".json,application/json" style="display:none">
+          <!-- T23: share URL button -->
+          <button class="btn ghost" id="shareUrlBtn" title="Copy a shareable URL that encodes both documents and settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
+            Share
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="options-panel hidden" id="optionsPanel">
+      <div class="opt-row">
+        <label class="opt-label" for="ignoreKeys">Ignore keys</label>
+        <input class="opt-input" type="text" id="ignoreKeys" placeholder="e.g. createdAt, updatedAt" aria-label="Comma-separated keys to ignore">
+      </div>
+      <div class="opt-row">
+        <label class="opt-label" for="numericTolerance">Numeric tolerance</label>
+        <input class="opt-input" type="number" id="numericTolerance" min="0" step="any" placeholder="0 (exact)" aria-label="Numeric tolerance">
+      </div>
+      <div class="opt-row">
+        <label class="check" style="font-size:13px"><input type="checkbox" id="ignoreCase"> Ignore string case</label>
+      </div>
+      <div class="opt-row">
+        <label class="opt-label" for="arrayKeyField">Array key field</label>
+        <input class="opt-input" type="text" id="arrayKeyField" placeholder="e.g. id" aria-label="Key field for array-object matching">
+      </div>
+      <!-- T22: format-tolerance toggles -->
+      <div class="opt-row" style="border-top:1px solid var(--border); margin-top:8px; padding-top:10px">
+        <span class="opt-label">Input format</span>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+          <label class="check" style="font-size:13px" title="Strict JSON (RFC 8259) — default"><input type="radio" name="inputFormat" value="json" id="fmtJSON" checked> JSON (strict)</label>
+          <label class="check" style="font-size:13px" title="JSON with // and /* */ comments"><input type="radio" name="inputFormat" value="jsonc" id="fmtJSONC"> JSONC (comments)</label>
+          <label class="check" style="font-size:13px" title="JSON5: comments + trailing commas + single-quoted strings + unquoted keys"><input type="radio" name="inputFormat" value="json5" id="fmtJSON5"> JSON5</label>
+          <label class="check" style="font-size:13px" title="Newline-Delimited JSON — one JSON document per line; parsed as an array"><input type="radio" name="inputFormat" value="ndjson" id="fmtNDJSON"> NDJSON</label>
+        </div>
+      </div>
+    </div>
+
+    <div id="banner" class="banner hidden"></div>
+
+    <div id="resultsWrap" class="results-wrap hidden">
+      <div class="results-head">
+        <div class="stats" id="stats"></div>
+        <div class="rhead-controls">
+          <label class="check"><input type="checkbox" id="onlyDiff" checked> Differences only</label>
+          <div class="nav-ctrl" id="navCtrl" style="display:none">
+            <button class="icon-btn" id="prevDiff" title="Previous diff (P)" aria-label="Previous diff">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+            </button>
+            <span class="nav-pos" id="navPos">— / —</span>
+            <button class="icon-btn" id="nextDiff" title="Next diff (N)" aria-label="Next diff">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </div>
+          <div class="segmented" role="tablist" aria-label="Result view">
+            <button id="segTree" role="tab" aria-selected="true" aria-controls="results" class="active">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h8M3 12h12M3 19h6"/><circle cx="18" cy="5" r="2"/><circle cx="20" cy="12" r="2"/></svg>
+              Tree
+            </button>
+            <button id="segTable" role="tab" aria-selected="false" aria-controls="results">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg>
+              Table
+            </button>
+            <button id="segRaw" role="tab" aria-selected="false" aria-controls="results">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              Raw
+            </button>
+            <!-- T24: 3-Way merge view tab -->
+            <button id="seg3Way" role="tab" aria-selected="false" aria-controls="results" title="Three-way merge view (Base / Left / Right)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><path d="M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M15 6a9 9 0 0 1 0 9"/><path d="M9 12a9 9 0 0 0 0 9"/></svg>
+              3-Way
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="subbar" id="subbar">
+        <div class="legend">
+          <span><i class="li-added"></i>Added</span>
+          <span><i class="li-removed"></i>Removed</span>
+          <span><i class="li-changed"></i>Changed</span>
+          <span><i class="li-modified"></i>Contains changes</span>
+        </div>
+        <div class="tree-tools" id="treeTools">
+          <button id="expandAll">Expand all</button>
+          <button id="collapseAll">Collapse all</button>
+        </div>
+        <div class="raw-toggle hidden" id="rawToggle">
+          <button id="rawSplit" class="active">Split</button>
+          <button id="rawUnified">Unified</button>
+        </div>
+      </div>
+
+      <div class="filterbar" id="filterbar">
+        <div class="filter-fields">
+          <input class="filter-input" type="text" id="filterPath" placeholder="Search path, e.g. address.geo" aria-label="Filter by path">
+          <input class="filter-input" type="text" id="filterValue" placeholder="Search value…" aria-label="Filter by value">
+        </div>
+        <div class="filter-types" role="group" aria-label="Filter by change type">
+          <label class="ftype-chip ft-added"><input type="checkbox" id="ftAdded" checked><span class="dot"></span>Added</label>
+          <label class="ftype-chip ft-removed"><input type="checkbox" id="ftRemoved" checked><span class="dot"></span>Removed</label>
+          <label class="ftype-chip ft-changed"><input type="checkbox" id="ftChanged" checked><span class="dot"></span>Changed</label>
+        </div>
+        <span class="filter-count hidden" id="filterCount"></span>
+        <button class="btn ghost sm" id="clearFilter" disabled style="padding:5px 10px">Clear filter</button>
+      </div>
+
+      <div class="selbar" id="selbar">
+        <span class="selinfo"><b id="selCount">0</b> of <b id="selTotal">0</b> selected</span>
+        <button class="linkbtn" id="selectAll">Select all</button>
+        <button class="linkbtn" id="clearSel" disabled>Clear</button>
+        <span class="sep"></span>
+        <button class="btn primary sm" id="genTable" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg>
+          Generate table
+        </button>
+        <button class="btn sm" id="exportPatch" disabled title="Export as RFC 6902 JSON Patch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
+          JSON Patch
+        </button>
+      </div>
+
+      <!-- T19: progress overlay while the worker is running -->
+      <div id="diffProgress" class="diff-progress hidden" aria-live="polite" aria-atomic="true">
+        <div class="diff-spinner" aria-hidden="true"></div>
+        <span class="diff-progress-text" id="diffProgressText">Comparing…</span>
+        <button class="diff-cancel-btn" id="cancelDiff" aria-label="Cancel comparison">Cancel</button>
+      </div>
+
+      <div class="results" id="results" role="region" aria-label="Diff results" aria-live="polite" aria-atomic="false"></div>
+    </div>
+
+    <div id="placeholder" class="results-wrap">
+      <div class="results">
+        <div class="state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+          <h3>No comparison yet</h3>
+          <p>Paste, upload, or drop JSON into the Source and Target panes, then press Compare.</p>
+          <p class="hint">Tip: press <kbd>⌘/Ctrl</kbd> + <kbd>Enter</kbd> to compare · <kbd>?</kbd> for shortcuts</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 id="modalTitle">Shareable table — <span id="modalCount">0</span> rows</h3>
+          <button class="close" id="modalClose" aria-label="Close dialog">×</button>
+        </div>
+        <div class="modal-actions">
+          <button class="btn sm" data-copy="md">Copy Markdown</button>
+          <button class="btn sm" data-copy="rich">Copy for Docs / Email</button>
+          <button class="btn sm" data-copy="tsv">Copy for Sheets</button>
+          <button class="btn ghost sm" id="dlCsv">Download CSV</button>
+        </div>
+        <div class="modal-body" id="modalPreview"></div>
+      </div>
+    </div>
+
+    <div id="drawer" class="drawer-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <div class="drawer">
+        <div class="drawer-head">
+          <h3 id="drawerTitle">Saved comparisons</h3>
+          <button class="close" id="drawerClose" aria-label="Close saved comparisons drawer">×</button>
+        </div>
+        <div class="drawer-tabs" role="tablist" aria-label="Saved comparison views">
+          <button id="libTabRecent" class="active" role="tab" aria-selected="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            Recent
+          </button>
+          <button id="libTabFolders" role="tab" aria-selected="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h6l2 3h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
+            Folders
+          </button>
+        </div>
+        <div class="drawer-tools">
+          <button class="btn primary sm" id="saveHereBtn">Save current</button>
+          <button class="btn ghost sm hidden" id="newFolderBtn">+ New folder</button>
+        </div>
+        <div class="drawer-body" id="libBody"></div>
+      </div>
+    </div>
+
+    <div id="saveModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="saveModalTitle">
+      <div class="modal" style="width:min(460px,100%)">
+        <div class="modal-head">
+          <h3 id="saveModalTitle">Save comparison</h3>
+          <button class="close" id="saveModalClose" aria-label="Close save dialog">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row"><label for="saveName">Name</label><input id="saveName" placeholder="e.g. API response v1 vs v2"></div>
+          <div class="form-row"><label for="saveFolder">Folder</label><select id="saveFolder"></select></div>
+          <div class="form-row hidden" id="newFolderRow"><label for="saveNewFolder">New folder name</label><input id="saveNewFolder" placeholder="Folder name"></div>
+        </div>
+        <div class="modal-actions" style="justify-content:flex-end">
+          <button class="btn ghost sm" id="saveCancel">Cancel</button>
+          <button class="btn primary sm" id="saveConfirm">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="shortcutsPop" class="shortcuts-pop hidden" role="dialog" aria-label="Keyboard shortcuts">
+      <h3>Keyboard shortcuts</h3>
+      <dl>
+        <dt>Compare</dt><dd><kbd>⌘/Ctrl</kbd> + <kbd>Enter</kbd></dd>
+        <dt>Next difference</dt><dd><kbd>N</kbd></dd>
+        <dt>Previous difference</dt><dd><kbd>P</kbd></dd>
+        <dt>Navigate tree</dt><dd><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd></dd>
+        <dt>Expand / collapse node</dt><dd><kbd>Enter</kbd></dd>
+        <dt>Close dialogs</dt><dd><kbd>Esc</kbd></dd>
+        <dt>Show this help</dt><dd><kbd>?</kbd></dd>
+      </dl>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+<script>
+/* ===== DIFF-CORE:START — single source of truth; mirrored in json_compare.html ===== */
+
+// --- T7/B4: recursion guard ---
+// _walk throws DiffDepthError when nesting exceeds MAX_DIFF_DEPTH. The web
+// app's render() and the Python CLI's main() catch it and show a friendly
+// message instead of a stack overflow.
+const MAX_DIFF_DEPTH = 500;
+class DiffDepthError extends Error {
+  constructor(path) {
+    super("JSON structure exceeds maximum diff depth (" + MAX_DIFF_DEPTH + ") at " + path + ". Ensure input is not circularly or extremely deeply nested.");
+    this.name = "DiffDepthError";
+    this.diffPath = path;
+  }
+}
+
+function typeName(v) {
+  if (v === null) return "null";
+  if (Array.isArray(v)) return "array";
+  switch (typeof v) {
+    case "boolean": return "boolean";
+    case "number": return "number";
+    case "string": return "string";
+    case "object": return "object";
+    default: return typeof v;
+  }
+}
+function isScalar(v) { const t = typeName(v); return t !== "object" && t !== "array"; }
+function _hasOwn(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+
+// --- path segments: an unambiguous identity for each Change (T4/B3) ---
+// A segment is one of: { k: <objectKey> } | { i: <arrayIndex> } | { star: true }.
+// The string `path` is for display only and is ambiguous (a literal key "a.b"
+// and nested a->b both render "$.a.b"); `segs` is the canonical identity.
+// segKey  -> collision-free token for ONE segment (safe map/equality key).
+// segId   -> collision-free id for a whole segment path (selection-set member).
+// segsStartWith -> structural prefix match (selection roll-up / tree grouping).
+function segLabel(s) { return s.k !== undefined ? s.k : (s.star ? "[*]" : "[" + s.i + "]"); }
+function segKey(s) { return s.k !== undefined ? "k:" + s.k : (s.star ? "*" : "i:" + s.i); }
+function segId(segs) { return JSON.stringify(segs); }
+function segsStartWith(segs, prefix) {
+  if (prefix.length > segs.length) return false;
+  for (let i = 0; i < prefix.length; i++) { if (segKey(segs[i]) !== segKey(prefix[i])) return false; }
+  return true;
+}
+function entriesUnderSegs(entries, prefix) { return entries.filter(e => segsStartWith(e.segs, prefix)); }
+
+// --- T6/B2: deep equality (for LCS matching) ---
+function _deepEqual(a, b) {
+  if (typeName(a) !== typeName(b)) return false;
+  if (isScalar(a)) return a === b;
+  if (Array.isArray(a)) {
+    if (a.length !== b.length) return false;
+    return a.every((v, i) => _deepEqual(v, b[i]));
+  }
+  const ka = Object.keys(a).sort(), kb = Object.keys(b).sort();
+  if (ka.length !== kb.length) return false;
+  if (!ka.every((k, i) => k === kb[i])) return false;
+  return ka.every(k => _deepEqual(a[k], b[k]));
+}
+
+// --- T6/B2: LCS for ordered array diff ---
+// Returns [{si, ti}] pairs of matching element indices (in ascending order).
+// Caps at m*n > 250 000 to protect against O(m·n) blowup on huge arrays.
+function _lcs(src, tgt) {
+  const m = src.length, n = tgt.length;
+  if (m === 0 || n === 0) return [];
+  if (m * n > 250000) {
+    // Greedy fallback: find matching elements left-to-right
+    const pairs = [];
+    let j = 0;
+    for (let i = 0; i < m && j < n; i++) {
+      for (let jj = j; jj < n; jj++) {
+        if (_deepEqual(src[i], tgt[jj])) { pairs.push({ si: i, ti: jj }); j = jj + 1; break; }
+      }
+    }
+    return pairs;
+  }
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = _deepEqual(src[i - 1], tgt[j - 1])
+        ? dp[i - 1][j - 1] + 1
+        : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  const pairs = [];
+  let i = m, j = n;
+  while (i > 0 && j > 0) {
+    if (_deepEqual(src[i - 1], tgt[j - 1])) { pairs.unshift({ si: i - 1, ti: j - 1 }); i--; j--; }
+    else if (dp[i - 1][j] >= dp[i][j - 1]) i--;
+    else j--;
+  }
+  return pairs;
+}
+
+// LCS-based diff for all-scalar ordered arrays (T6/B2).
+// Emits added/removed for non-matching elements; recursively walks matches.
+// Removed elements use their source index; added elements use their target index.
+function _diffArrayLCS(src, tgt, path, segs, unordered, keyBy, out, depth, opts) {
+  const pairs = _lcs(src, tgt);
+  let si = 0, ti = 0, pi = 0;
+  while (si < src.length || ti < tgt.length) {
+    const next = pi < pairs.length ? pairs[pi] : null;
+    const nextSi = next ? next.si : src.length;
+    const nextTi = next ? next.ti : tgt.length;
+    while (si < nextSi) {
+      out.push({ op: "removed", path: `${path}[${si}]`, segs: segs.concat([{ i: si }]), from: src[si] });
+      si++;
+    }
+    while (ti < nextTi) {
+      out.push({ op: "added", path: `${path}[${ti}]`, segs: segs.concat([{ i: ti }]), to: tgt[ti] });
+      ti++;
+    }
+    if (next) {
+      _walk(src[si], tgt[ti], `${path}[${si}]`, segs.concat([{ i: si }]), unordered, keyBy, out, depth + 1, opts);
+      si++; ti++; pi++;
+    }
+  }
+}
+
+// Key-based diff for arrays of objects when keyBy is set (T6/B2).
+// Items sharing the same keyBy value are recursively diffed; unmatched
+// source items → removed; unmatched target items → added.
+function _diffArrayKeyed(src, tgt, path, segs, unordered, keyBy, out, depth, opts) {
+  const srcMap = new Map(), tgtMap = new Map();
+  src.forEach((item, si) => {
+    if (item && typeof item === "object" && !Array.isArray(item) && _hasOwn(item, keyBy)) {
+      const k = JSON.stringify(item[keyBy]);
+      if (!srcMap.has(k)) srcMap.set(k, { si, item });
+    }
+  });
+  tgt.forEach((item, ti) => {
+    if (item && typeof item === "object" && !Array.isArray(item) && _hasOwn(item, keyBy)) {
+      const k = JSON.stringify(item[keyBy]);
+      if (!tgtMap.has(k)) tgtMap.set(k, { ti, item });
+    }
+  });
+  // Matched pairs → recurse (in source order)
+  srcMap.forEach(({ si, item: srcItem }, k) => {
+    if (tgtMap.has(k)) {
+      const { ti, item: tgtItem } = tgtMap.get(k);
+      _walk(srcItem, tgtItem, `${path}[${si}]`, segs.concat([{ i: si }]), unordered, keyBy, out, depth + 1, opts);
+    }
+  });
+  // Only in source → removed
+  srcMap.forEach(({ si, item }, k) => {
+    if (!tgtMap.has(k)) out.push({ op: "removed", path: `${path}[${si}]`, segs: segs.concat([{ i: si }]), from: item });
+  });
+  // Only in target → added
+  tgtMap.forEach(({ ti, item }, k) => {
+    if (!srcMap.has(k)) out.push({ op: "added", path: `${path}[${ti}]`, segs: segs.concat([{ i: ti }]), to: item });
+  });
+}
+
+// --- T9/B6: big-number precision detection ---
+// Returns the set of raw integer strings in `text` that would lose precision
+// when read through JSON.parse (i.e. integers outside ±2^53-1).
+// This is a text-level heuristic: it may trigger on numbers inside JSON string
+// values, but false positives are acceptable — we warn, not error.
+function detectPrecisionLoss(text) {
+  const found = [];
+  const re = /-?\d{16,}/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const raw = m[0];
+    if (String(Number(raw)) !== raw && !found.includes(raw)) found.push(raw);
+  }
+  return found;
+}
+
+// Recursively collect differences into `out`. Pure: no DOM, no globals.
+// `segs` is the structured path to the current node (see helpers above).
+// `keyBy` is the optional key field for array-of-objects matching (T6).
+// `depth` is incremented on every recursive call; throws DiffDepthError at
+// MAX_DIFF_DEPTH to prevent stack overflows on pathological inputs (T7/B4).
+// `opts` carries comparison options (T14): ignoreKeys, numericTolerance, ignoreCase.
+function _walk(src, tgt, path, segs, unordered, keyBy, out, depth, opts) {
+  if (depth > MAX_DIFF_DEPTH) throw new DiffDepthError(path);
+  if (typeName(src) !== typeName(tgt)) {
+    out.push({ op: "type_changed", path, segs, from: src, to: tgt, fromType: typeName(src), toType: typeName(tgt) });
+    return out;
+  }
+  const t = typeName(src);
+  if (t === "object") {
+    // T14: ignoreKeys — skip listed keys from both sides.
+    const ignoreKeys = (opts && Array.isArray(opts.ignoreKeys) && opts.ignoreKeys.length) ? opts.ignoreKeys : null;
+    const keys = [...new Set([...Object.keys(src), ...Object.keys(tgt)])].sort();
+    const visibleKeys = ignoreKeys ? keys.filter(k => !ignoreKeys.includes(k)) : keys;
+    visibleKeys.forEach(k => {
+      const p = `${path}.${k}`, sg = segs.concat([{ k }]), inS = _hasOwn(src, k), inT = _hasOwn(tgt, k);
+      if (inS && !inT) out.push({ op: "removed", path: p, segs: sg, from: src[k] });
+      else if (!inS && inT) out.push({ op: "added", path: p, segs: sg, to: tgt[k] });
+      else _walk(src[k], tgt[k], p, sg, unordered, keyBy, out, depth + 1, opts);
+    });
+    return out;
+  }
+  if (t === "array") {
+    // Unordered multiset branch (existing behaviour, unchanged).
+    if (unordered && src.every(isScalar) && tgt.every(isScalar)) {
+      const key = x => typeName(x) + ":" + JSON.stringify(x);
+      const sC = {}, tC = {}, ref = {};
+      src.forEach(x => { const k = key(x); sC[k] = (sC[k] || 0) + 1; ref[k] = x; });
+      tgt.forEach(x => { const k = key(x); tC[k] = (tC[k] || 0) + 1; ref[k] = x; });
+      [...new Set([...Object.keys(sC), ...Object.keys(tC)])].forEach(k => {
+        const s = sC[k] || 0, tt = tC[k] || 0, sg = segs.concat([{ star: true }]);
+        if (s > tt) out.push({ op: "removed", path: `${path}[*]`, segs: sg, from: ref[k] });
+        else if (tt > s) out.push({ op: "added", path: `${path}[*]`, segs: sg, to: ref[k] });
+        else out.push({ op: "equal", path: `${path}[*]`, segs: sg, from: ref[k], to: ref[k] });
+      });
+      return out;
+    }
+    // T6/B2: ordered-array matching strategy selection.
+    if (keyBy) {
+      // Opt-in key-based matching for arrays of objects.
+      _diffArrayKeyed(src, tgt, path, segs, unordered, keyBy, out, depth, opts);
+    } else if (src.every(isScalar) && tgt.every(isScalar)) {
+      // All-scalar arrays: use LCS so a single insert/delete doesn't cascade.
+      _diffArrayLCS(src, tgt, path, segs, unordered, keyBy, out, depth, opts);
+    } else {
+      // Mixed / object arrays without a keyBy: positional (safe fallback).
+      const max = Math.max(src.length, tgt.length);
+      for (let i = 0; i < max; i++) {
+        const p = `${path}[${i}]`, sg = segs.concat([{ i }]);
+        if (i >= tgt.length) out.push({ op: "removed", path: p, segs: sg, from: src[i] });
+        else if (i >= src.length) out.push({ op: "added", path: p, segs: sg, to: tgt[i] });
+        else _walk(src[i], tgt[i], p, sg, unordered, keyBy, out, depth + 1, opts);
+      }
+    }
+    return out;
+  }
+  // T14: numeric tolerance — treat close numbers as equal.
+  if (t === "number" && opts && typeof opts.numericTolerance === "number" && isFinite(opts.numericTolerance) && opts.numericTolerance >= 0) {
+    const eq = Math.abs(src - tgt) <= opts.numericTolerance;
+    out.push({ op: eq ? "equal" : "changed", path, segs, from: src, to: tgt });
+    return out;
+  }
+  // T14: ignore-case — treat strings equal if they match case-insensitively.
+  if (t === "string" && opts && opts.ignoreCase) {
+    const eq = src.toLowerCase() === tgt.toLowerCase();
+    out.push({ op: eq ? "equal" : "changed", path, segs, from: src, to: tgt });
+    return out;
+  }
+  if (src === tgt) out.push({ op: "equal", path, segs, from: src, to: tgt });
+  else out.push({ op: "changed", path, segs, from: src, to: tgt });
+  return out;
+}
+
+// Public entry point. Change = { op, path, segs, from?, to?, fromType?, toType? }.
+// opts: { unordered?: boolean, keyBy?: string,
+//         ignoreKeys?: string[], numericTolerance?: number, ignoreCase?: boolean }
+function diffCore(src, tgt, opts) {
+  const unordered = !!(opts && opts.unordered);
+  const keyBy = (opts && typeof opts.keyBy === "string") ? opts.keyBy : null;
+  return _walk(src, tgt, "$", [], unordered, keyBy, [], 0, opts || {});
+}
+/* ===== DIFF-CORE:END ===== */
+
+/* ---- T19: Off-thread diff worker ----------------------------------------
+ * The worker is built by extracting the DIFF-CORE block from this page's own
+ * <script> tag at runtime and appending a message handler.  This avoids any
+ * extra copy of the diff-core code and ensures the worker runs the exact same
+ * logic as the inline synchronous path.  A Blob URL is used so the worker
+ * works over file:// without a server.
+ *
+ * Message protocol (mirrors src/worker-protocol.js):
+ *   main→worker: { type:"diff",   id, srcText, tgtText, opts }
+ *                { type:"cancel", id }
+ *   worker→main: { type:"progress", id, phase:"parse"|"diff", pct }
+ *                { type:"result",   id, changes, precLost }
+ *                { type:"error",    id, name, message, parseTarget? }
+ */
+const _workerHandlerSrc = `
+const _wCancelled = new Set();
+function _wpParse(text, fmt) {
+  switch(fmt) {
+    case "jsonc":  return parseJSONC(text || "null");
+    case "json5":  return parseJSON5(text || "null");
+    case "ndjson": return parseNDJSON(text || "null");
+    default:       return JSON.parse(text || "null");
+  }
+}
+self.onmessage = function(evt) {
+  const msg = evt.data;
+  if (!msg || typeof msg !== "object") return;
+  if (msg.type === "cancel") { _wCancelled.add(msg.id); return; }
+  if (msg.type !== "diff") return;
+  const { id, srcText, tgtText, opts } = msg;
+  const fmt = (opts && opts.inputFormat) || "json";
+  function done(payload) { self.postMessage(payload); }
+  try {
+    if (_wCancelled.has(id)) { _wCancelled.delete(id); return; }
+    done({ type: "progress", id, phase: "parse", pct: 0 });
+    let src, tgt;
+    try { src = _wpParse(srcText, fmt); }
+    catch (e) { return done({ type: "error", id, name: e.name || "SyntaxError", message: e.message, parseTarget: "source" }); }
+    try { tgt = _wpParse(tgtText, fmt); }
+    catch (e) { return done({ type: "error", id, name: e.name || "SyntaxError", message: e.message, parseTarget: "target" }); }
+    if (_wCancelled.has(id)) { _wCancelled.delete(id); return done({ type: "error", id, name: "CancelError", message: "Cancelled" }); }
+    done({ type: "progress", id, phase: "diff", pct: 50 });
+    const precLost = [...new Set([...detectPrecisionLoss(srcText || "null"), ...detectPrecisionLoss(tgtText || "null")])];
+    const changes = diffCore(src, tgt, opts || {});
+    if (_wCancelled.has(id)) { _wCancelled.delete(id); return done({ type: "error", id, name: "CancelError", message: "Cancelled" }); }
+    done({ type: "result", id, changes, precLost });
+  } catch (err) {
+    _wCancelled.delete(id);
+    done({ type: "error", id, name: err.name || "Error", message: err.message });
+  }
+};
+`;
+
+let _diffWorker = null;
+let _diffRequestId = 0;
+let _activeDiffId = null;
+
+function _getWorker() {
+  if (_diffWorker) return _diffWorker;
+  try {
+    let coreCode = "", parsersCode = "";
+    for (const s of document.querySelectorAll("script")) {
+      const t = s.textContent || "";
+      // Extract DIFF-CORE block
+      const cs = t.indexOf("/* ===== DIFF-CORE:START"), ce = t.indexOf("/* ===== DIFF-CORE:END ===== */");
+      if (cs >= 0 && ce >= 0) coreCode = t.slice(cs, ce + "/* ===== DIFF-CORE:END ===== */".length);
+      // Extract LENIENT-PARSERS block (T22) — split literals to avoid self-match
+      const _LP_S = "/* ===== LENIENT-PARSERS:" + "START", _LP_E = "/* ===== LENIENT-PARSERS:" + "END ===== */";
+      const ps = t.indexOf(_LP_S), pe = t.lastIndexOf(_LP_E);
+      if (ps >= 0 && pe > ps) parsersCode = t.slice(ps, pe + _LP_E.length);
+    }
+    if (!coreCode) return null;
+    const blob = new Blob([coreCode + "\n" + parsersCode + "\n" + _workerHandlerSrc], { type: "application/javascript" });
+    _diffWorker = new Worker(URL.createObjectURL(blob));
+    _diffWorker.onerror = () => { _diffWorker = null; };
+    return _diffWorker;
+  } catch (e) { return null; }
+}
+
+function _showDiffProgress(text) {
+  const el = document.getElementById("diffProgress");
+  const tx = document.getElementById("diffProgressText");
+  if (el) { if (tx) tx.textContent = text; el.classList.remove("hidden"); }
+}
+function _hideDiffProgress() {
+  const el = document.getElementById("diffProgress");
+  if (el) el.classList.add("hidden");
+}
+
+/* ---- lineDiff (T13): Myers line-level diff, inlined from src/line-diff.js --
+ * splitLines(text) -> string[]  (each line keeps its trailing \n)
+ * lineDiff(src[], tgt[]) -> Hunk[]   Hunk={op,lines[]}
+ */
+function splitLines(text) {
+  if (!text) return [];
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length - 1; i++) lines[i] += "\n";
+  if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
+  return lines;
+}
+function lineDiff(src, tgt) {
+  const n = src.length, m = tgt.length;
+  if (n === 0 && m === 0) return [];
+  if (n === 0) return [{ op: "added",   lines: [...tgt] }];
+  if (m === 0) return [{ op: "removed", lines: [...src] }];
+  if (n * m > 500_000) {
+    const h = []; if (n) h.push({ op: "removed", lines:[...src] }); if (m) h.push({ op:"added", lines:[...tgt] }); return h;
+  }
+  const MAX = n + m, V = new Array(2*MAX+2).fill(0), trace = [];
+  outer: for (let d = 0; d <= MAX; d++) {
+    trace.push([...V]);
+    for (let k = -d; k <= d; k += 2) {
+      const off = k + MAX; let x;
+      if (k === -d || (k !== d && V[off-1] < V[off+1])) x = V[off+1]; else x = V[off-1]+1;
+      let y = x - k;
+      while (x < n && y < m && src[x] === tgt[y]) { x++; y++; }
+      V[off] = x; if (x >= n && y >= m) break outer;
+    }
+  }
+  let x = n, y = m; const edits = [];
+  for (let d = trace.length-1; d > 0; d--) {
+    const Vp = trace[d], k = x-y, off = k+MAX;
+    let prevK; if (k === -d || (k !== d && Vp[off-1] < Vp[off+1])) prevK = k+1; else prevK = k-1;
+    const ins = (prevK === k+1), pX = Vp[prevK+MAX], pY = pX-prevK;
+    while (x > pX && y > pY) { x--; y--; edits.push({ op:"equal", xi:x, yi:y }); }
+    if (ins) { y--; edits.push({ op:"insert", xi:x, yi:y }); } else { x--; edits.push({ op:"remove", xi:x, yi:y }); }
+    x = pX; y = pY;
+  }
+  while (x > 0 && y > 0) { x--; y--; edits.push({ op:"equal", xi:x, yi:y }); }
+  edits.reverse();
+  const hunks = [];
+  for (const e of edits) {
+    const op = e.op==="insert"?"added":e.op==="remove"?"removed":"equal";
+    const line = op==="added"?tgt[e.yi]:src[e.xi];
+    if (hunks.length && hunks[hunks.length-1].op===op) hunks[hunks.length-1].lines.push(line);
+    else hunks.push({ op, lines:[line] });
+  }
+  return hunks;
+}
+
+/* ---- JSON Patch RFC 6902 (T17) — inlined from src/json-patch.js ------------
+ * changesToPatch(changes) -> RFC6902 Operation[]
+ * Skips "equal" and unordered star-segs entries (patch semantics undefined).
+ */
+function segsToPointer(segs) {
+  if (!segs || segs.length === 0) return "";
+  return segs.map(s => {
+    if (s.star) return "-";
+    const raw = s.k !== undefined ? String(s.k) : String(s.i);
+    return raw.replace(/~/g, "~0").replace(/\//g, "~1");
+  }).join("/");
+}
+function changesToPatch(changes) {
+  const ops = [];
+  for (const ch of changes) {
+    if (ch.op === "equal") continue;
+    if (ch.segs && ch.segs.some(s => s.star)) continue;
+    const path = "/" + segsToPointer(ch.segs);
+    if (ch.op === "added")   ops.push({ op: "add",     path, value: ch.to });
+    else if (ch.op === "removed") ops.push({ op: "remove",  path });
+    else if (ch.op === "changed" || ch.op === "type_changed")
+      ops.push({ op: "replace", path, value: ch.to });
+  }
+  return ops;
+}
+
+/* ---- tokenizeJSON (T15): lightweight JSON syntax highlighter ---------------
+ * Returns an HTML string with <span class="t-*"> tokens.
+ * Inlined here; mirrored test in tests/highlight.test.js.
+ */
+const MAX_HIGHLIGHT = 80_000;  // chars — skip highlighting above this threshold
+function tokenizeJSON(text) {
+  if (!text || !text.trim()) return escapeHtml(text);
+  let out = "", i = 0; const n = text.length;
+  function advance(cls, raw) {
+    const esc = escapeHtml(raw);
+    out += cls ? `<span class="${cls}">${esc}</span>` : esc;
+  }
+  while (i < n) {
+    const c = text[i];
+    if (c === '"') {
+      let j = i + 1;
+      while (j < n) { if (text[j] === '\\') { j += 2; continue; } if (text[j] === '"') { j++; break; } j++; }
+      advance("t-string", text.slice(i, j)); i = j; continue;
+    }
+    if (c === '-' || (c >= '0' && c <= '9')) {
+      let j = i; if (text[j] === '-') j++;
+      while (j < n && text[j] >= '0' && text[j] <= '9') j++;
+      if (j < n && text[j] === '.') { j++; while (j < n && text[j] >= '0' && text[j] <= '9') j++; }
+      if (j < n && (text[j] === 'e' || text[j] === 'E')) { j++; if (text[j] === '+' || text[j] === '-') j++; while (j < n && text[j] >= '0' && text[j] <= '9') j++; }
+      advance("t-number", text.slice(i, j)); i = j; continue;
+    }
+    if (text.startsWith("true", i))  { advance("t-boolean", "true");  i += 4; continue; }
+    if (text.startsWith("false", i)) { advance("t-boolean", "false"); i += 5; continue; }
+    if (text.startsWith("null", i))  { advance("t-null",    "null");  i += 4; continue; }
+    out += escapeHtml(c); i++;
+  }
+  return out;
+}
+function refreshHighlight(taId) {
+  const ta = document.getElementById(taId);
+  const wrap = ta ? ta.closest(".editor-wrap") : null;
+  const pre  = document.getElementById(taId === "source" ? "srcHighlight" : "tgtHighlight");
+  if (!pre || !wrap) return;
+  if (ta.value.length > MAX_HIGHLIGHT) { wrap.classList.add("no-hl"); pre.innerHTML = ""; return; }
+  wrap.classList.remove("no-hl");
+  pre.innerHTML = tokenizeJSON(ta.value) + "\n";  // trailing \n prevents last-line collapse
+}
+const _hlTimers = {};
+function scheduleHighlight(taId) {
+  clearTimeout(_hlTimers[taId]);
+  _hlTimers[taId] = setTimeout(() => refreshHighlight(taId), 60);
+}
+function refreshBothHighlights() { refreshHighlight("source"); refreshHighlight("target"); }
+
+/* ---- filterChanges (T11) — pure filter for Change[] arrays ----------------
+ * Inlined from src/filter.js (same logic, no export keyword).
+ * filter: { pathQ: string, valueQ: string, types: Set<"added"|"removed"|"changed"|"type_changed"> }
+ */
+function filterChanges(changes, filter) {
+  const { pathQ = "", valueQ = "", types } = filter;
+  const pq = pathQ.trim().toLowerCase();
+  const vq = valueQ.trim().toLowerCase();
+  const ALL_OPS = new Set(["added", "removed", "changed", "type_changed"]);
+  const filterTypes = types && types.size < ALL_OPS.size;
+  if (!pq && !vq && !filterTypes) return changes;   // nothing active — fast path
+  return changes.filter(ch => {
+    if (types && !types.has(ch.op)) return false;
+    if (pq && !ch.path.toLowerCase().includes(pq)) return false;
+    if (vq) {
+      const fromS = ch.from !== undefined ? JSON.stringify(ch.from).toLowerCase() : "";
+      const toS   = ch.to   !== undefined ? JSON.stringify(ch.to).toLowerCase()   : "";
+      if (!fromS.includes(vq) && !toS.includes(vq)) return false;
+    }
+    return true;
+  });
+}
+
+/* ===== LENIENT-PARSERS:START — mirrored in the diff worker blob ===== */
+/* T22: Lenient parsers inlined from src/lenient-parsers.js. No export.
+ * parseJSONC, parseJSON5, parseNDJSON.
+ * Included in the worker blob (between START/END markers) so the worker
+ * can also use the selected input format.
+ */
+function parseJSONC(text) {
+  let out = "", i = 0, n = text.length;
+  while (i < n) {
+    const c = text[i];
+    if (c === '"') {
+      let j = i + 1;
+      while (j < n) { if (text[j] === "\\") { j += 2; continue; } if (text[j] === '"') { j++; break; } j++; }
+      out += text.slice(i, j); i = j; continue;
+    }
+    if (c === "/" && text[i + 1] === "/") { while (i < n && text[i] !== "\n") i++; continue; }
+    if (c === "/" && text[i + 1] === "*") {
+      i += 2; while (i < n && !(text[i] === "*" && text[i + 1] === "/")) i++; i += 2; continue;
+    }
+    out += c; i++;
+  }
+  try { return JSON.parse(out); }
+  catch (e) { throw new SyntaxError("JSONC parse error: " + e.message); }
+}
+
+function parseJSON5(text) {
+  let pos = 0; const src = text;
+  function err(msg) { throw new SyntaxError("JSON5 parse error at position " + pos + ": " + msg); }
+  function skipWS() {
+    while (pos < src.length) {
+      const c = src[pos];
+      if (c === " " || c === "\t" || c === "\r" || c === "\n") { pos++; continue; }
+      if (c === "/" && src[pos+1] === "/") { while (pos < src.length && src[pos] !== "\n") pos++; continue; }
+      if (c === "/" && src[pos+1] === "*") { pos += 2; while (pos < src.length && !(src[pos] === "*" && src[pos+1] === "/")) pos++; pos += 2; continue; }
+      break;
+    }
+  }
+  function peek() { skipWS(); return pos < src.length ? src[pos] : ""; }
+  function parseValue() {
+    skipWS(); if (pos >= src.length) err("unexpected end");
+    const c = src[pos];
+    if (c === "{") return parseObject5(); if (c === "[") return parseArray5();
+    if (c === '"') return parseDQ(); if (c === "'") return parseSQ();
+    if (c === "-" || c === "+" || (c >= "0" && c <= "9") || c === ".") return parseNum5();
+    const rest = src.slice(pos);
+    if (rest.startsWith("true"))  { pos += 4; return true; }  if (rest.startsWith("false")) { pos += 5; return false; }
+    if (rest.startsWith("null"))  { pos += 4; return null; }  if (rest.startsWith("Infinity"))  { pos += 8; return Infinity; }
+    if (rest.startsWith("-Infinity")) { pos += 9; return -Infinity; } if (rest.startsWith("NaN")) { pos += 3; return NaN; }
+    err("unexpected char '" + c + "'");
+  }
+  function parseDQ() {
+    pos++; let s = "";
+    while (pos < src.length && src[pos] !== '"') { if (src[pos] === "\\") { pos++; s += parseEsc5(); } else s += src[pos++]; }
+    if (src[pos] !== '"') err("unterminated string"); pos++; return s;
+  }
+  function parseSQ() {
+    pos++; let s = "";
+    while (pos < src.length && src[pos] !== "'") { if (src[pos] === "\\") { pos++; s += parseEsc5(); } else s += src[pos++]; }
+    if (src[pos] !== "'") err("unterminated single-quoted string"); pos++; return s;
+  }
+  function parseEsc5() {
+    const c = src[pos++];
+    switch(c) { case "n": return "\n"; case "r": return "\r"; case "t": return "\t";
+      case "b": return "\b"; case "f": return "\f"; case "\\": return "\\"; case "/": return "/";
+      case '"': return '"'; case "'": return "'";
+      case "u": { const h = src.slice(pos, pos+4); pos += 4; return String.fromCharCode(parseInt(h, 16)); }
+      default: return c; }
+  }
+  function parseNum5() {
+    const start = pos;
+    if (src[pos] === "+" || src[pos] === "-") pos++;
+    if (src[pos] === "0" && (src[pos+1] === "x" || src[pos+1] === "X")) {
+      pos += 2; while (pos < src.length && /[0-9a-fA-F]/.test(src[pos])) pos++;
+      return parseInt(src.slice(start, pos), 16);
+    }
+    while (pos < src.length && /[0-9.eE+\-]/.test(src[pos])) pos++;
+    const raw = src.slice(start, pos); const v = Number(raw);
+    if (isNaN(v) && raw !== "NaN") err("invalid number '" + raw + "'"); return v;
+  }
+  function parseObject5() {
+    pos++; const obj = {};
+    while (peek() !== "}") {
+      if (pos >= src.length) err("unterminated object"); skipWS();
+      let key;
+      const c = src[pos];
+      if (c === '"') key = parseDQ(); else if (c === "'") key = parseSQ();
+      else if (/[a-zA-Z_$]/.test(c)) { const s=pos; while(pos<src.length&&/[a-zA-Z0-9_$]/.test(src[pos]))pos++; key=src.slice(s,pos); }
+      else err("expected key, got '" + c + "'");
+      skipWS(); if (src[pos] !== ":") err("expected ':' after key"); pos++;
+      obj[key] = parseValue(); skipWS();
+      if (src[pos] === ",") { pos++; skipWS(); } if (src[pos] === "}") break;
+    }
+    if (src[pos] !== "}") err("unterminated object"); pos++; return obj;
+  }
+  function parseArray5() {
+    pos++; const arr = [];
+    while (peek() !== "]") {
+      if (pos >= src.length) err("unterminated array"); skipWS();
+      if (src[pos] === "]") break;
+      arr.push(parseValue()); skipWS(); if (src[pos] === ",") pos++;
+    }
+    if (src[pos] !== "]") err("unterminated array"); pos++; return arr;
+  }
+  const result = parseValue(); skipWS();
+  if (pos < src.length) err("unexpected content after value: '" + src[pos] + "'");
+  return result;
+}
+
+function parseNDJSON(text) {
+  try { return JSON.parse(text); } catch (_) { /* fall through */ }
+  const lines = text.split("\n"); const results = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim(); if (!line) continue;
+    try { results.push(JSON.parse(line)); }
+    catch (e) { throw new SyntaxError("NDJSON parse error on line " + (i+1) + ": " + e.message); }
+  }
+  if (results.length === 0) throw new SyntaxError("NDJSON: no records found");
+  return results;
+}
+
+/* ===== LENIENT-PARSERS:END ===== */
+
+// T22: get the active parser function based on the radio-button selection.
+function _getParser() {
+  const val = document.querySelector('input[name="inputFormat"]:checked')?.value || "json";
+  switch (val) {
+    case "jsonc":  return parseJSONC;
+    case "json5":  return parseJSON5;
+    case "ndjson": return parseNDJSON;
+    default:       return null; // null → use standard JSON.parse in worker/sync
+  }
+}
+
+/* ---- Partial-JSON auto-repair --------------------------------------------
+ * Best-effort fix for pasted JSON that is truncated or wrapped in junk:
+ *   • strips leading text before the first { or [
+ *   • drops trailing junk after a complete top-level value
+ *   • closes an unterminated string and any open { / [ brackets
+ *   • removes trailing commas, and trims a dangling "key": fragment
+ * Returns { text, value, alreadyValid? } or null when no valid JSON can be made.
+ */
+function _scanJSONState(s) {
+  const stack = [];
+  let inStr = false, esc = false, completeAt = -1;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === "{" || c === "[") stack.push(c === "{" ? "}" : "]");
+    else if (c === "}" || c === "]") {
+      if (stack.length) { stack.pop(); if (!stack.length && completeAt === -1) completeAt = i; }
+    }
+  }
+  return { stack, inStr, completeAt };
+}
+function _tryParseJSON(t) { try { return { value: JSON.parse(t) }; } catch (_) { return null; } }
+function _closeJSON(body) {
+  const st = _scanJSONState(body);
+  let t = st.inStr ? body + '"' : body;
+  t = t.replace(/,\s*$/, "");
+  for (let i = st.stack.length - 1; i >= 0; i--) t += st.stack[i];
+  return t.replace(/,(\s*[}\]])/g, "$1");
+}
+function repairJSON(raw) {
+  const original = String(raw == null ? "" : raw);
+  const direct = _tryParseJSON(original);
+  if (direct) return { text: original, value: direct.value, alreadyValid: true };
+
+  let s = original.trim();
+  const f = s.search(/[\[{]/);
+  if (f > 0) s = s.slice(f);
+  s = s.trim();
+  if (!s) return null;
+
+  const st = _scanJSONState(s);
+  const pretty = v => JSON.stringify(v, null, 2);
+
+  // (a) complete top-level value with trailing junk → keep just the head
+  if (st.completeAt !== -1 && st.completeAt < s.length - 1) {
+    const r = _tryParseJSON(s.slice(0, st.completeAt + 1));
+    if (r) return { text: pretty(r.value), value: r.value };
+  }
+  // (b) truncated → close strings/brackets
+  let r = _tryParseJSON(_closeJSON(s));
+  if (r) return { text: pretty(r.value), value: r.value };
+  // (c) dangling tail ("key": <partial>  or bare "key") → trim, then close
+  const trimmed = (st.inStr ? s + '"' : s)
+    .replace(/,?\s*"(?:[^"\\]|\\.)*"\s*:\s*[^,{}\[\]"']*$/, "")
+    .replace(/,?\s*"(?:[^"\\]|\\.)*"\s*$/, "")
+    .replace(/,\s*$/, "");
+  r = _tryParseJSON(_closeJSON(trimmed));
+  if (r) return { text: pretty(r.value), value: r.value };
+
+  return null;
+}
+// Offer to auto-repair an invalid pane; applies only after the user confirms.
+// Returns true if a repair was offered, false if nothing could be repaired.
+function offerRepair(targetId, label, recompare) {
+  const ta = document.getElementById(targetId);
+  if (!ta) return false;
+  const repaired = repairJSON(ta.value);
+  if (!repaired || repaired.alreadyValid) return false;
+  showConfirm(
+    `${label} isn’t valid JSON — it looks truncated or has extra characters. ` +
+    `Auto-repair it to the closest valid JSON? This replaces the current ${label.toLowerCase()} content.`,
+    ok => {
+      if (!ok) return;
+      ta.value = repaired.text;
+      updateCounts(); refreshHighlight(targetId);
+      toast(`Repaired ${label} JSON`);
+      if (recompare && lastCompared) render();
+    }
+  );
+  return true;
+}
+// T22: get parser by name (used in worker to select the right function)
+function _parserByName(name) {
+  switch (name) {
+    case "jsonc":  return parseJSONC;
+    case "json5":  return parseJSON5;
+    case "ndjson": return parseNDJSON;
+    default:       return null;
+  }
+}
+
+/* ---- T24: Three-way diff — inlined from src/three-way.js ----------------
+ * threeWayDiff(base,left,right,opts,diffFn) -> ThreeWayChange[]
+ * kind ∈ "left-only"|"right-only"|"both-same"|"conflict"
+ */
+function _tw3deepEq(a,b) {
+  if(a===b) return true; if(a===null||b===null) return a===b;
+  if(typeof a!==typeof b) return false;
+  if(Array.isArray(a)){if(!Array.isArray(b)||a.length!==b.length) return false; return a.every((v,i)=>_tw3deepEq(v,b[i]));}
+  if(typeof a==="object"){const ka=Object.keys(a).sort(),kb=Object.keys(b).sort();if(ka.length!==kb.length) return false;if(!ka.every((k,i)=>k===kb[i])) return false;return ka.every(k=>_tw3deepEq(a[k],b[k]));}
+  return false;
+}
+function threeWayDiff(base, left, right, opts, diffFn) {
+  const lc = diffFn(base,left,opts||{}).filter(c=>c.op!=="equal");
+  const rc = diffFn(base,right,opts||{}).filter(c=>c.op!=="equal");
+  const lm = new Map(lc.map(c=>[JSON.stringify(c.segs),c]));
+  const rm = new Map(rc.map(c=>[JSON.stringify(c.segs),c]));
+  const result=[], seen=new Set();
+  for(const c of lc){
+    const id=JSON.stringify(c.segs); seen.add(id);
+    const r=rm.get(id);
+    if(!r) result.push({path:c.path,segs:c.segs,kind:"left-only",base:c.from,left:c.to,right:c.from});
+    else { const kind=_tw3deepEq(c.to,r.to)?"both-same":"conflict"; result.push({path:c.path,segs:c.segs,kind,base:c.from,left:c.to,right:r.to}); }
+  }
+  for(const c of rc){ const id=JSON.stringify(c.segs); if(seen.has(id)) continue; result.push({path:c.path,segs:c.segs,kind:"right-only",base:c.from,left:c.from,right:c.to}); }
+  result.sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);
+  return result;
+}
+
+function renderThreeWay(changes) {
+  if(!changes.length) return `<div class="state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><h3>No differences</h3><p>Base, Left, and Right are all identical.</p></div>`;
+  const kindLabel = { "left-only":"Left only","right-only":"Right only","both-same":"Both (same)","conflict":"⚡ Conflict" };
+  let html = `<div class="tw-col-headers"><div class="tw-kind">Kind</div><div>Path</div><div>Base</div><div>Left (ours)</div><div>Right (theirs)</div></div>`;
+  for(const c of changes){
+    const klass="tw-"+c.kind;
+    html += `<div class="tw-row ${klass}">` +
+      `<div class="tw-kind tw-conflict-label">${escapeHtml(kindLabel[c.kind]||c.kind)}</div>` +
+      `<div class="tw-cell" style="font-family:var(--mono);font-size:12px">${escapeHtml(c.path)}</div>` +
+      `<div class="tw-cell">${c.base===undefined?'<span style="color:var(--text-3)">—</span>':escapeHtml(fmt(c.base))}</div>` +
+      `<div class="tw-cell">${c.left===undefined?'<span style="color:var(--text-3)">—</span>':escapeHtml(fmt(c.left))}</div>` +
+      `<div class="tw-cell">${c.right===undefined?'<span style="color:var(--text-3)">—</span>':escapeHtml(fmt(c.right))}</div>` +
+      `</div>`;
+  }
+  return html;
+}
+
+/* ---- T20: Virtualizer — inlined from src/virtualizer.js -----------------
+ * visibleSlice, assignTreeId, flattenNodes, defaultExpandedIds (no export).
+ * VIRT_THRESHOLD = 1000 rows: above this, virtual scroll is activated.
+ */
+const VIRT_ROW_H_TABLE = 40;
+const VIRT_ROW_H_TREE  = 34;
+const VIRT_THRESHOLD   = 1000;
+const VIRT_BUFFER      = 10;
+
+function visibleSlice(total, rowH, viewH, scrollTop, buf) {
+  buf = buf === undefined ? VIRT_BUFFER : buf;
+  if (total === 0) return { start: 0, end: 0, padTop: 0, padBot: 0 };
+  const start  = Math.max(0, Math.floor(scrollTop / rowH) - buf);
+  const end    = Math.min(total, Math.ceil((scrollTop + viewH) / rowH) + buf);
+  return { start, end, padTop: start * rowH, padBot: Math.max(0, (total - end) * rowH) };
+}
+
+function assignTreeId(node) {
+  node.id = JSON.stringify(node.segs || []);
+  if (node.children) node.children.forEach(assignTreeId);
+}
+
+function flattenNodes(children, expandedIds, onlyDiff) {
+  const rows = [];
+  function walk(nodes, depth) {
+    for (const node of nodes) {
+      if (onlyDiff && !node.hasDiff) continue;
+      rows.push({ node, depth });
+      if (node.container && expandedIds.has(node.id)) {
+        const kids = onlyDiff ? node.children.filter(c => c.hasDiff) : node.children;
+        walk(kids, depth + 1);
+      }
+    }
+  }
+  const topKids = onlyDiff ? children.filter(c => c.hasDiff) : children;
+  walk(topKids, 0);
+  return rows;
+}
+
+function defaultExpandedIds(root) {
+  // Compact by default: start fully collapsed. The top-level rows are always
+  // visible; the user expands branches as needed (or uses "Expand all").
+  return new Set();
+}
+
+// T20: virtual-tree expand/collapse state. Keyed by node.id.
+// Populated fresh for each new diff result; updated by user interaction.
+let _treeExpandedIds = new Set();
+let _virtRoot = null;       // most recent tree root (with assignTreeId applied)
+let _virtScrollEl = null;   // the #results element when in virt mode
+let _virtScrollH  = 0;      // cached row height used for scroll handler
+
+function _installVirtScroll(rowH) {
+  const el = document.getElementById("results");
+  el.classList.add("virt-active");
+  if (_virtScrollEl === el) return;   // already wired
+  _virtScrollEl = el;
+  _virtScrollH  = rowH;
+  el.addEventListener("scroll", _onVirtScroll, { passive: true });
+}
+function _removeVirtScroll() {
+  if (_virtScrollEl) {
+    _virtScrollEl.classList.remove("virt-active");
+    _virtScrollEl.removeEventListener("scroll", _onVirtScroll);
+    _virtScrollEl = null;
+  }
+}
+let _virtScrollRAF = 0;
+function _onVirtScroll() {
+  if (!_virtScrollEl || _virtScrollRAF) return;   // coalesce bursts into one render per frame
+  _virtScrollRAF = requestAnimationFrame(() => {
+    _virtScrollRAF = 0;
+    if (!_virtScrollEl) return;
+    if (viewMode === "table") _renderVirtTable();
+    else if (viewMode === "tree") _renderVirtTree();
+  });
+}
+
+// ─── Virtual table ────────────────────────────────────────────────────────────
+function _renderVirtTable() {
+  const el = _virtScrollEl;
+  if (!el || !_virtTableRows) return;
+  const { start, end, padTop, padBot } = visibleSlice(
+    _virtTableRows.length, VIRT_ROW_H_TABLE, el.clientHeight, el.scrollTop
+  );
+  const padTopEl = el.querySelector(".vt-pad-top");
+  const padBotEl = el.querySelector(".vt-pad-bot");
+  const bodyEl   = el.querySelector(".vt-body");
+  if (!padTopEl || !bodyEl) return;
+  padTopEl.style.height = padTop + "px";
+  padBotEl.style.height = padBot + "px";
+  let html = "";
+  for (let i = start; i < end; i++) html += _tableRowHTML(_virtTableRows[i]);
+  bodyEl.innerHTML = html;
+  syncSelectionUI();
+}
+
+let _virtTableRows = null;
+
+function _initVirtTable(visible) {
+  _virtTableRows = visible;
+  const el = document.getElementById("results");
+  _installVirtScroll(VIRT_ROW_H_TABLE);
+  const headers = `<div class="col-headers vt-col-headers"><div class="selhead"><input type="checkbox" class="cbx" id="selAllTable" aria-label="Select all"></div><div></div><div class="c-path">Path</div><div>Value</div></div>`;
+  const total = visible.length;
+  el.innerHTML = headers +
+    `<div class="vt-pad-top" style="height:0"></div>` +
+    `<div class="vt-body"></div>` +
+    `<div class="vt-pad-bot" style="height:${total * VIRT_ROW_H_TABLE}px"></div>`;
+  _renderVirtTable();
+}
+
+function _tableRowHTML(r) {
+  const sel = r.op !== "equal" ? `<input type="checkbox" class="cbx tsel" data-segs="${escapeHtml(segId(r.segs))}" aria-label="Select change at ${escapeHtml(r.path)}">` : "";
+  return `<div class="row ${r.op}" style="min-height:${VIRT_ROW_H_TABLE}px"><div class="selcell">${sel}</div><div class="gutter">${gutterSym[r.op]}</div>` +
+    `<div class="cell path"><span class="badge ${r.op}">${badgeLabel[r.op]}</span>${escapeHtml(r.path)}</div>` +
+    `<div class="cell value">${valHTML(r)}</div>${rowActsHTML(r)}</div>`;
+}
+
+// ─── Virtual tree ─────────────────────────────────────────────────────────────
+function _renderVirtTree() {
+  const el = _virtScrollEl;
+  if (!el || !_virtRoot) return;
+  const { onlyDiff } = getOpts();
+  const flat = flattenNodes(_virtRoot.children, _treeExpandedIds, onlyDiff);
+  const { start, end, padTop, padBot } = visibleSlice(
+    flat.length, VIRT_ROW_H_TREE, el.clientHeight, el.scrollTop
+  );
+  const padTopEl = el.querySelector(".vt-pad-top");
+  const padBotEl = el.querySelector(".vt-pad-bot");
+  const bodyEl   = el.querySelector(".vt-body");
+  if (!padTopEl || !bodyEl) return;
+  padTopEl.style.height = padTop + "px";
+  padBotEl.style.height = padBot + "px";
+  let html = "";
+  for (let i = start; i < end; i++) html += _virtTreeRowHTML(flat[i]);
+  bodyEl.innerHTML = html;
+  syncSelectionUI();
+}
+
+function _initVirtTree(root, onlyDiff) {
+  _virtRoot = root;
+  const flat = flattenNodes(root.children, _treeExpandedIds, onlyDiff);
+  const el = document.getElementById("results");
+  _installVirtScroll(VIRT_ROW_H_TREE);
+  const total = flat.length;
+  el.innerHTML =
+    `<div class="vt-pad-top" style="height:0"></div>` +
+    `<div class="vt-body"></div>` +
+    `<div class="vt-pad-bot" style="height:${total * VIRT_ROW_H_TREE}px"></div>`;
+  _renderVirtTree();
+}
+
+function _virtTreeRowHTML(item) {
+  const { node, depth } = item;
+  const indent = depth * 18;
+  const kc = "k-" + node.op;
+  const cbx = node.selectable
+    ? `<input type="checkbox" class="cbx tsel" data-segs="${escapeHtml(segId(node.segs))}">`
+    : `<span class="cbx-spacer"></span>`;
+  const badge = node.op !== "equal" && (node.selectable || (node.op === "added" || node.op === "removed"))
+    ? `<span class="badge ${node.op}">${badgeLabel[node.op]}</span>` : "";
+  if (node.container) {
+    const isExp = _treeExpandedIds.has(node.id);
+    const toggle = isExp ? "▾" : "▸";
+    const meta = node.type === "array" ? `[${node.children.length}]` : `{${node.children.length}}`;
+    const count = node.diffCount > 0 ? `<span class="tcount">${node.diffCount}</span>` : "";
+    return `<div class="vt-row tnode ${kc}" data-vt-id="${escapeHtml(node.id)}" data-container="1" ` +
+      `role="treeitem" aria-expanded="${isExp}" tabindex="-1" style="padding-left:${8+indent}px">` +
+      `${cbx}<span class="ttoggle" aria-hidden="true">${toggle}</span>` +
+      `<span class="tkey">${escapeHtml(node.key)}</span>` +
+      `<span class="tmeta" aria-hidden="true">${meta}</span>${count}${badge}</div>`;
+  }
+  return `<div class="vt-row vt-leaf tnode ${kc} leaf" role="treeitem" tabindex="-1" style="padding-left:${8+indent}px">` +
+    `${cbx}<span class="ttoggle" aria-hidden="true"></span>` +
+    `<span class="tkey">${escapeHtml(node.key)}</span><span class="tcolon" aria-hidden="true">:</span>` +
+    `<span class="tvalwrap">${valHTML(node)}</span>${badge}${rowActsHTML(node)}</div>`;
+}
+
+/* ---- app-level rendering helpers (DOM-free string utilities) ---- */
+function fmt(v) { return JSON.stringify(v); }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
+
+// T8: extract location from a SyntaxError thrown by JSON.parse and append
+// a caret excerpt so users see exactly where their JSON is broken.
+function formatJsonError(err, text) {
+  const raw = err.message || String(err);
+  let pos = null;
+  // Chrome/Node: "... at position N" or "... (position N)"
+  const atPos = raw.match(/\bposition (\d+)/i);
+  if (atPos) {
+    pos = parseInt(atPos[1], 10);
+  } else {
+    // Firefox: "JSON.parse: ... at line N column M of the JSON data"
+    const lc = raw.match(/\bline (\d+) col(?:umn)? (\d+)/i);
+    if (lc) {
+      const lineNum = parseInt(lc[1], 10), col = parseInt(lc[2], 10);
+      const lines = text.split("\n");
+      pos = lines.slice(0, lineNum - 1).reduce((s, l) => s + l.length + 1, 0) + col - 1;
+    }
+  }
+  if (pos !== null && pos >= 0 && pos <= text.length) {
+    const before = text.slice(0, pos);
+    const lineNum = (before.match(/\n/g) || []).length + 1;
+    const lineStart = before.lastIndexOf("\n") + 1;
+    const col = pos - lineStart + 1;
+    const lineText = text.split("\n")[lineNum - 1] || "";
+    const excerpt = lineText.slice(0, 120); // cap long lines
+    const caret = " ".repeat(Math.min(col - 1, excerpt.length)) + "^";
+    return raw + "\nLine " + lineNum + ", column " + col + ":\n" + excerpt + "\n" + caret;
+  }
+  return raw;
+}
+
+/* ============ TREE DERIVATION ============
+ * The tree view is a pure transform of the single Change[] produced by the
+ * core — it groups changes by their path. No comparison happens here. For an
+ * added/removed whole subtree, the change carries the full value, which we
+ * expand into display-only child nodes via valueToNodes (rendering one value,
+ * not diffing two). Node shape:
+ *   { key, segs, op, container, type, children, from, to, fromType, toType,
+ *     hasDiff, diffCount, selectable }
+ * `segs` (on selectable nodes) is the canonical id used for selection.
+ */
+function sumDiff(children) { return children.reduce((n, c) => n + (c.container ? c.diffCount : (c.hasDiff ? 1 : 0)), 0); }
+
+// Expand a single concrete value into display nodes (used for added/removed
+// subtrees). Descendants are not individually selectable — the subtree root
+// carries the checkbox — so only the root needs `segs` (set by changeToNode).
+function valueToNodes(key, op, value, side) {
+  const t = typeName(value);
+  if (t === "object") {
+    const children = Object.keys(value).sort().map(k => valueToNodes(k, op, value[k], side));
+    return { key, op, container: true, type: "object", children, hasDiff: true, diffCount: sumDiff(children), selectable: false };
+  }
+  if (t === "array") {
+    const children = value.map((v, i) => valueToNodes(`[${i}]`, op, v, side));
+    return { key, op, container: true, type: "array", children, hasDiff: true, diffCount: sumDiff(children), selectable: false };
+  }
+  const node = { key, op, container: false, type: t, hasDiff: true, diffCount: 1, selectable: false };
+  node[side] = value;
+  return node;
+}
+
+function changeToNode(key, ch, segs) {
+  if (ch.op === "added" || ch.op === "removed") {
+    const side = ch.op === "added" ? "to" : "from";
+    const value = ch.op === "added" ? ch.to : ch.from;
+    const node = valueToNodes(key, ch.op, value, side);
+    node.segs = segs; node.selectable = true;   // the subtree root is the selectable unit
+    node.path = ch.path;                          // for copy-path/value row actions
+    if (node[side] === undefined) node[side] = value;  // store whole subtree value for copy-value
+    return node;
+  }
+  const node = { key, segs, op: ch.op, container: false, hasDiff: ch.op !== "equal", diffCount: ch.op !== "equal" ? 1 : 0, selectable: ch.op !== "equal" };
+  node.from = ch.from; node.to = ch.to; node.path = ch.path;
+  if (ch.op === "type_changed") { node.fromType = ch.fromType; node.toType = ch.toType; }
+  return node;
+}
+
+function makeContainer(key, segs) {
+  return { key, segs, op: null, container: true, type: "object", children: [], _childMap: new Map(), hasDiff: false, diffCount: 0, selectable: false };
+}
+function finalizeTree(node) {
+  if (!node.container) return;
+  node.children.forEach(finalizeTree);
+  if (node.op === null) {            // reconstructed intermediate container
+    // Array vs object is decided by the children's segment type, not a key
+    // regex, so a literal key like "[0]" can't masquerade as an index.
+    node.type = node.children.some(c => { const l = c.segs[c.segs.length - 1]; return l && (l.i !== undefined || l.star); }) ? "array" : "object";
+    node.diffCount = sumDiff(node.children);
+    node.hasDiff = node.diffCount > 0;
+    node.op = node.hasDiff ? "modified" : "equal";
+    node.selectable = node.hasDiff;
+  }
+  delete node._childMap;
+}
+function buildTree(changes) {
+  // Whole-document scalar/type change lands at "$" (no segments).
+  if (changes.length === 1 && changes[0].segs.length === 0) {
+    return changeToNode("root", changes[0], []);
+  }
+  const root = makeContainer("root", []);
+  changes.forEach(ch => {
+    const segs = ch.segs;
+    let node = root;
+    for (let i = 0; i < segs.length; i++) {
+      const seg = segs[i], here = segs.slice(0, i + 1);
+      if (i === segs.length - 1) {
+        node.children.push(changeToNode(segLabel(seg), ch, here));
+      } else {
+        const mk = segKey(seg);   // collision-free grouping key (dotted keys safe)
+        let child = node._childMap.get(mk);
+        if (!child) { child = makeContainer(segLabel(seg), here); node._childMap.set(mk, child); node.children.push(child); }
+        node = child;
+      }
+    }
+  });
+  finalizeTree(root);
+  assignTreeId(root);   // T20: stamp stable ids for virtual-scroll expand/collapse tracking
+  return root;
+}
+
+/* ---- Raw text view rendering (T13) ---- */
+let rawMode = "split";  // "split" | "unified"
+
+function renderUnified(srcText, tgtText) {
+  const hunks = lineDiff(splitLines(srcText), splitLines(tgtText));
+  let sn = 0, tn = 0, html = '<div class="raw-unified">';
+  for (const h of hunks) {
+    for (const line of h.lines) {
+      const esc = escapeHtml(line);
+      const cls = h.op === "added" ? "r-added" : h.op === "removed" ? "r-removed" : "r-equal";
+      const sym = h.op === "added" ? "+" : h.op === "removed" ? "−" : " ";
+      const ln  = h.op === "added" ? ++tn : h.op === "removed" ? ++sn : (++sn, ++tn, sn);
+      html += `<div class="raw-line ${cls}"><span class="raw-gutter">${sym}${ln}</span><span class="raw-code">${esc}</span></div>`;
+    }
+  }
+  html += "</div>";
+  return html;
+}
+
+function renderSplit(srcText, tgtText) {
+  const hunks = lineDiff(splitLines(srcText), splitLines(tgtText));
+  let sLines = [], tLines = [];
+  for (const h of hunks) {
+    if (h.op === "equal") {
+      h.lines.forEach(l => { sLines.push({ cls: "r-equal", line: l }); tLines.push({ cls: "r-equal", line: l }); });
+    } else if (h.op === "removed") {
+      h.lines.forEach(l => { sLines.push({ cls: "r-removed", line: l }); tLines.push({ cls: "r-empty", line: "" }); });
+    } else {
+      h.lines.forEach(l => { sLines.push({ cls: "r-empty", line: "" }); tLines.push({ cls: "r-added", line: l }); });
+    }
+  }
+  const colHtml = (rows) => rows.map((r, i) => {
+    if (r.cls === "r-empty") return `<div class="raw-line r-equal"><span class="raw-gutter"></span><span class="raw-code" style="background:var(--surface-3)"></span></div>`;
+    return `<div class="raw-line ${r.cls}"><span class="raw-gutter">${i+1}</span><span class="raw-code">${escapeHtml(r.line)}</span></div>`;
+  }).join("");
+  return `<div class="raw-split">
+    <div class="raw-split-pane"><div class="raw-split-head">Source</div><div class="raw-unified">${colHtml(sLines)}</div></div>
+    <div class="raw-split-pane"><div class="raw-split-head">Target</div><div class="raw-unified">${colHtml(tLines)}</div></div>
+  </div>`;
+}
+
+function renderRaw() {
+  const srcText = JSON.stringify(JSON.parse(document.getElementById("source").value || "null"), null, 2);
+  const tgtText = JSON.stringify(JSON.parse(document.getElementById("target").value || "null"), null, 2);
+  return rawMode === "split" ? renderSplit(srcText, tgtText) : renderUnified(srcText, tgtText);
+}
+
+/* ============ RENDERING ============ */
+const gutterSym = { added: "+", removed: "−", changed: "~", type_changed: "~", equal: "=" };
+const badgeLabel = { added: "added", removed: "removed", changed: "changed", type_changed: "type", equal: "same" };
+
+// Hover-revealed "copy path / copy value" controls for a diff row or tree node.
+// Works in table, tree, and virtual renderers via #results click delegation.
+const _copyPathIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+function rowActsHTML(o) {
+  if (!o || !o.path) return "";            // skip intermediate "modified" containers (no canonical path)
+  const v = (o.op === "removed") ? o.from : o.to;
+  const valStr = (v === undefined) ? "" : (typeof v === "string" ? v : JSON.stringify(v));
+  const path = escapeHtml(o.path), val = escapeHtml(valStr);
+  return `<span class="row-actions">` +
+    `<button type="button" class="row-act" data-copy-path="${path}" title="Copy path" aria-label="Copy path ${path}">${_copyPathIcon}path</button>` +
+    `<button type="button" class="row-act" data-copy-val="${val}" title="Copy value" aria-label="Copy value">value</button>` +
+    `</span>`;
+}
+
+function valHTML(row) {
+  if (row.op === "added") return `<span class="val to">${escapeHtml(fmt(row.to))}</span>`;
+  if (row.op === "removed") return `<span class="val from">${escapeHtml(fmt(row.from))}</span>`;
+  if (row.op === "changed")
+    return `<span class="val from">${escapeHtml(fmt(row.from))}</span><span class="arrow">→</span><span class="val to">${escapeHtml(fmt(row.to))}</span>`;
+  if (row.op === "type_changed")
+    return `<span class="val from">${escapeHtml(fmt(row.from))}<span class="ttype">${row.fromType}</span></span><span class="arrow">→</span><span class="val to">${escapeHtml(fmt(row.to))}<span class="ttype">${row.toType}</span></span>`;
+  const v = row.to;
+  return `<span class="val plain t-${typeName(v)}">${escapeHtml(fmt(v))}</span>`;
+}
+
+function renderTable(rows, onlyDiff) {
+  const visible = onlyDiff ? rows.filter(r => r.op !== "equal") : rows;
+  if (!visible.length) return emptyState(onlyDiff);
+  let html = `<div class="col-headers"><div class="selhead"><input type="checkbox" class="cbx" id="selAllTable"></div><div></div><div class="c-path">Path</div><div>Value</div></div>`;
+  visible.forEach(r => {
+    const sel = r.op !== "equal" ? `<input type="checkbox" class="cbx tsel" data-segs="${escapeHtml(segId(r.segs))}">` : "";
+    html += `<div class="row ${r.op}"><div class="selcell">${sel}</div><div class="gutter">${gutterSym[r.op]}</div>` +
+      `<div class="cell path"><span class="badge ${r.op}">${badgeLabel[r.op]}</span>${escapeHtml(r.path)}</div>` +
+      `<div class="cell value">${valHTML(r)}</div>${rowActsHTML(r)}</div>`;
+  });
+  return html;
+}
+
+function renderTreeNode(node, onlyDiff, depth = 0) {
+  if (onlyDiff && !node.hasDiff) return "";
+  const kc = "k-" + node.op;
+  // checkbox shown for selectable nodes (change leaves, added/removed subtree
+  // roots, and intermediate containers that contain diffs)
+  const cbx = node.selectable
+    ? `<input type="checkbox" class="cbx tsel" data-segs="${escapeHtml(segId(node.segs))}">`
+    : `<span class="cbx-spacer"></span>`;
+  if (node.container) {
+    const kidsArr = onlyDiff ? node.children.filter(c => c.hasDiff) : node.children;
+    const kids = kidsArr.map(c => renderTreeNode(c, onlyDiff, depth + 1)).join("");
+    const meta = node.type === "array" ? `[${node.children.length}]` : `{${node.children.length}}`;
+    // Compact by default: only the root level is open; everything deeper starts
+    // collapsed so the user expands into the branches they care about.
+    const collapsed = depth === 0 ? "" : "collapsed";
+    const expanded = collapsed ? "false" : "true";
+    const count = node.diffCount > 0 ? `<span class="tcount" aria-label="${node.diffCount} change${node.diffCount!==1?'s':''}">${node.diffCount}</span>` : "";
+    const badge = (node.op === "added" || node.op === "removed") ? `<span class="badge ${node.op}">${badgeLabel[node.op]}</span>` : "";
+    return `<div class="tnode ${kc} ${collapsed}" data-container="1" role="treeitem" aria-expanded="${expanded}" tabindex="-1">` +
+      `<div class="trow">${cbx}<span class="ttoggle" aria-hidden="true"></span><span class="tkey">${escapeHtml(node.key)}</span>` +
+      `<span class="tmeta" aria-hidden="true">${meta}</span><span class="tellipsis" aria-hidden="true">…</span>${count}${badge}${rowActsHTML(node)}</div>` +
+      `<div class="tchildren" role="group">${kids}</div></div>`;
+  }
+  const badge = node.hasDiff ? `<span class="badge ${node.op}">${badgeLabel[node.op]}</span>` : "";
+  return `<div class="tnode ${kc} leaf" role="treeitem" tabindex="-1"><div class="trow">${cbx}<span class="ttoggle" aria-hidden="true"></span>` +
+    `<span class="tkey">${escapeHtml(node.key)}</span><span class="tcolon" aria-hidden="true">:</span>` +
+    `<span class="tvalwrap">${valHTML(node)}</span>${badge}${rowActsHTML(node)}</div></div>`;
+}
+
+function renderTree(root, onlyDiff) {
+  const inner = renderTreeNode(root, onlyDiff);
+  if (!inner) return emptyState(onlyDiff);
+  return `<div class="tree" role="tree" aria-label="Diff results tree">${inner}</div>`;
+}
+
+function emptyState(onlyDiff) {
+  return `<div class="state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>` +
+    `<h3>${onlyDiff ? "No differences" : "Nothing to show"}</h3>` +
+    `<p>${onlyDiff ? "The two documents are identical." : "Both documents are empty — there's nothing to compare."}</p></div>`;
+}
+
+/* ============ STATE + WIRING ============ */
+let lastCompared = false, viewMode = "tree";
+let lastRows = null;           // full Change[] from most recent diffCore call (includes "equal")
+let flatEntries = [];          // non-equal entries from lastRows (source of truth for export)
+let filteredEntries = [];      // filtered subset of flatEntries (used for rendering, T11)
+const selected = new Set();    // selected change ids (segId of each change's segs)
+let modalRows = [];            // snapshot used by the export modal
+
+function getOpts() {
+  const rawKeys = document.getElementById("ignoreKeys").value.trim();
+  const ignoreKeys = rawKeys ? rawKeys.split(",").map(s => s.trim()).filter(Boolean) : undefined;
+  const rawTol = document.getElementById("numericTolerance").value.trim();
+  const numericTolerance = rawTol !== "" && !isNaN(+rawTol) && +rawTol >= 0 ? +rawTol : undefined;
+  const keyBy = document.getElementById("arrayKeyField").value.trim() || undefined;
+  return {
+    unordered: document.getElementById("unordered").checked,
+    onlyDiff:  document.getElementById("onlyDiff").checked,
+    ignoreCase: document.getElementById("ignoreCase").checked,
+    ignoreKeys,
+    numericTolerance,
+    keyBy,
+  };
+}
+
+// T11: read current filter state from the filter bar
+function getFilter() {
+  const types = new Set();
+  if (document.getElementById("ftAdded").checked)   types.add("added");
+  if (document.getElementById("ftRemoved").checked)  types.add("removed");
+  if (document.getElementById("ftChanged").checked)  { types.add("changed"); types.add("type_changed"); }
+  return {
+    pathQ: document.getElementById("filterPath").value,
+    valueQ: document.getElementById("filterValue").value,
+    types
+  };
+}
+
+// T12: next / previous diff navigation ─────────────────────────────────────
+let navIdx = -1;
+
+function getNavTargets() {
+  if (viewMode === "table") {
+    return [...document.querySelectorAll("#results .row:not(.equal)")];
+  }
+  // Tree: leaf diffs + added/removed subtree roots (not intermediate containers)
+  return [...document.querySelectorAll(
+    "#results .tnode.k-added, #results .tnode.k-removed, " +
+    "#results .tnode.k-changed, #results .tnode.k-type_changed"
+  )];
+}
+
+function updateNavUI() {
+  const targets = getNavTargets();
+  const total = targets.length;
+  const ctrl = document.getElementById("navCtrl");
+  const pos  = document.getElementById("navPos");
+  if (!total) { ctrl.style.display = "none"; return; }
+  ctrl.style.display = "flex";
+  pos.textContent = navIdx >= 0 ? (navIdx + 1) + " / " + total : "— / " + total;
+}
+
+function navTo(idx) {
+  const targets = getNavTargets();
+  if (!targets.length) { navIdx = -1; updateNavUI(); return; }
+  navIdx = ((idx % targets.length) + targets.length) % targets.length;
+  const el = targets[navIdx];
+  // Expand any collapsed ancestors in the tree
+  let p = el.parentElement;
+  while (p && p.id !== "results") {
+    if (p.classList.contains("tnode") && p.hasAttribute("data-container")) p.classList.remove("collapsed");
+    p = p.parentElement;
+  }
+  // Unhighlight previous, scroll, highlight new
+  document.querySelectorAll("#results .diff-focused").forEach(e => e.classList.remove("diff-focused"));
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  void el.offsetWidth; // reflow so re-adding the class re-triggers the animation
+  el.classList.add("diff-focused");
+  updateNavUI();
+}
+
+function navStep(delta) {
+  const targets = getNavTargets();
+  if (!targets.length) return;
+  const next = delta > 0
+    ? (navIdx < 0 ? 0 : (navIdx + 1) % targets.length)
+    : (navIdx < 0 ? targets.length - 1 : (navIdx - 1 + targets.length) % targets.length);
+  navTo(next);
+}
+
+// T11: re-render the results area using the current filter state + lastRows.
+// Called on Compare (via render()), view switch, onlyDiff change, and filter input.
+function renderView() {
+  if (!lastRows) return;
+  const { onlyDiff } = getOpts();
+  const filter = getFilter();
+  filteredEntries = filterChanges(flatEntries, filter);
+
+  // Update filter count badge and Clear button state
+  const isFiltered = filteredEntries.length !== flatEntries.length ||
+    filter.pathQ.trim() !== "" || filter.valueQ.trim() !== "" || filter.types.size < 4;
+  // Always render the count when there are diffs (don't toggle visibility) so
+  // adjusting a filter never adds/removes an element and shifts the chips.
+  const fcEl = document.getElementById("filterCount");
+  if (flatEntries.length > 0) {
+    fcEl.textContent = filteredEntries.length + " / " + flatEntries.length + " shown";
+    fcEl.classList.remove("hidden");
+  } else {
+    fcEl.classList.add("hidden");
+  }
+  document.getElementById("clearFilter").disabled = !isFiltered;
+
+  const resEl = document.getElementById("results");
+  // Show/hide view-specific controls
+  const filterActive = filteredEntries.length !== flatEntries.length;
+  document.getElementById("rawToggle").classList.toggle("hidden", viewMode !== "raw");
+  document.getElementById("treeTools").style.visibility = (viewMode === "tree") ? "visible" : "hidden";
+  document.getElementById("filterbar").classList.toggle("hidden", viewMode === "raw" || viewMode === "3way");
+
+  // T20: tear down any active virtual scroll before switching views
+  _removeVirtScroll();
+
+  // T24: three-way merge view
+  if (viewMode === "3way") {
+    const srcText  = document.getElementById("source").value || "null";
+    const tgtText  = document.getElementById("target").value || "null";
+    const baseText = document.getElementById("base").value   || "null";
+    try {
+      const parser = _getParser() || ((t) => JSON.parse(t));
+      const base = parser(baseText), left = parser(srcText), right = parser(tgtText);
+      const { unordered, keyBy } = getOpts();
+      const changes = threeWayDiff(base, left, right, { unordered, keyBy }, diffCore);
+      // Summary stats
+      const cf=changes.filter(c=>c.kind==="conflict").length;
+      const lo=changes.filter(c=>c.kind==="left-only").length;
+      const ro=changes.filter(c=>c.kind==="right-only").length;
+      const bs=changes.filter(c=>c.kind==="both-same").length;
+      document.getElementById("stats").innerHTML = changes.length === 0
+        ? `<span class="stat equal">✓ Identical — no differences</span>`
+        : `<span class="tw-stat conflict">${cf} conflict${cf!==1?"s":""}</span>` +
+          `<span class="tw-stat left-only">${lo} left-only</span>` +
+          `<span class="tw-stat right-only">${ro} right-only</span>` +
+          (bs ? `<span class="tw-stat both-same">${bs} both-same</span>` : "");
+      resEl.innerHTML = renderThreeWay(changes);
+    } catch(e) {
+      resEl.innerHTML = `<div class="state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><h3>Parse error</h3><p>${escapeHtml(e.message)}</p></div>`;
+    }
+    document.getElementById("selbar").style.display = "none";
+    navIdx = -1; updateNavUI();
+    return;
+  }
+
+  if (viewMode === "raw") {
+    // Raw text diff view — ignores filter (operates on full JSON text)
+    try { resEl.innerHTML = `<div class="raw-view">${renderRaw()}</div>`; } catch (e) { resEl.innerHTML = ""; }
+  } else if (filterActive && filteredEntries.length === 0 && flatEntries.length > 0) {
+    resEl.innerHTML = `<div class="state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><h3>No matches</h3><p>No changes match the current filter. Try adjusting or clearing it.</p></div>`;
+  } else if (viewMode === "tree") {
+    const rowsForTree = filterActive ? filteredEntries : lastRows;
+    const root = buildTree(rowsForTree);
+    // T20: init expanded state when building a fresh tree (new diff result)
+    if (root !== _virtRoot) {
+      _treeExpandedIds = defaultExpandedIds(root);
+    }
+    const flatCount = flattenNodes(root.children, _treeExpandedIds, filterActive ? false : onlyDiff).length;
+    if (flatCount > VIRT_THRESHOLD) {
+      _initVirtTree(root, filterActive ? false : onlyDiff);
+    } else {
+      _virtRoot = root;  // keep ref so expand/collapse updates work
+      resEl.innerHTML = renderTree(root, filterActive ? false : onlyDiff);
+    }
+  } else {
+    // Table view
+    const tableRows = filterActive ? filteredEntries : lastRows;
+    const visible = onlyDiff || filterActive ? tableRows.filter(r => r.op !== "equal") : tableRows;
+    if (visible.length > VIRT_THRESHOLD) {
+      _initVirtTable(visible);
+    } else {
+      resEl.innerHTML = renderTable(tableRows, filterActive ? false : onlyDiff);
+    }
+  }
+
+  // drop selections whose changes no longer exist after a recompare
+  const valid = new Set(flatEntries.map(e => e.id));
+  [...selected].forEach(id => { if (!valid.has(id)) selected.delete(id); });
+  document.getElementById("selbar").style.display = flatEntries.length ? "flex" : "none";
+  syncSelectionUI();
+  // T12: reset nav position after any re-render; update counter display
+  navIdx = -1;
+  updateNavUI();
+}
+
+// T19: shared result handler (called by worker path and sync fallback)
+function _applyDiffResult(rows, precLost) {
+  document.getElementById("banner").classList.add("hidden");
+  if (precLost && precLost.length) {
+    const nums = precLost.slice(0, 3).join(", ") + (precLost.length > 3 ? "…" : "");
+    showWarning("Precision warning", "One or more integers exceed JavaScript’s safe integer limit (2⁵³−1 = 9,007,199,254,740,991) and were silently rounded by JSON.parse. Affected value(s): " + nums + ". The diff may not reflect the true difference. Consider storing these as strings.");
+  }
+  lastRows = rows;
+  flatEntries = rows.filter(r => r.op !== "equal");
+  flatEntries.forEach(e => { e.id = segId(e.segs); });
+  const counts = { added: 0, removed: 0, changed: 0, equal: 0 };
+  rows.forEach(r => {
+    if (r.op === "added") counts.added++;
+    else if (r.op === "removed") counts.removed++;
+    else if (r.op === "changed" || r.op === "type_changed") counts.changed++;
+    else if (r.op === "equal") counts.equal++;
+  });
+  const total = counts.added + counts.removed + counts.changed;
+  const unchanged = counts.equal
+    ? `<span class="stat unchanged" title="Fields that are identical in both documents"><span class="n">${counts.equal}</span> unchanged</span>`
+    : "";
+  document.getElementById("stats").innerHTML = total === 0
+    ? `<span class="stat equal">✓ Identical — no differences</span>${unchanged}`
+    : `<span class="diff-total">${total} difference${total !== 1 ? "s" : ""}</span>` +
+      `<span class="stat added"><span class="n">${counts.added}</span> added</span>` +
+      `<span class="stat removed"><span class="n">${counts.removed}</span> removed</span>` +
+      `<span class="stat changed"><span class="n">${counts.changed}</span> changed</span>${unchanged}`;
+  renderView();
+  collapseInputs(total);   // results take focus; editors fold into a slim summary bar
+}
+
+// ── Results-focus mode ─────────────────────────────────────────────────────
+// After a successful compare the editors collapse so the comparison gets the
+// full viewport; a slim summary bar offers a one-click way back to editing.
+function collapseInputs(total) {
+  const panes = document.querySelector(".panes");
+  const bar = document.getElementById("inputsBar");
+  if (!panes || !bar) return;
+  const s = document.getElementById("source").value.length;
+  const t = document.getElementById("target").value.length;
+  const diffTxt = total === 0 ? "no differences" : `${total} difference${total !== 1 ? "s" : ""}`;
+  document.getElementById("inputsSummary").innerHTML =
+    `<b>Source</b> ${_formatBytes(s)} · <b>Target</b> ${_formatBytes(t)} · ${diffTxt}`;
+  panes.classList.add("hidden");
+  bar.classList.remove("hidden");
+}
+function expandInputs() {
+  const panes = document.querySelector(".panes");
+  const bar = document.getElementById("inputsBar");
+  if (!panes || !bar) return;
+  bar.classList.add("hidden");
+  panes.classList.remove("hidden");
+  refreshBothHighlights();
+  const src = document.getElementById("source");
+  if (src) src.focus();
+  document.querySelector(".panes").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function render() {
+  document.getElementById("banner").classList.add("hidden");
+  const srcText = document.getElementById("source").value;
+  const tgtText = document.getElementById("target").value;
+  const srcLen = srcText.length, tgtLen = tgtText.length;
+
+  // T21: hard limit check — refuse inputs that would exhaust browser memory
+  if (srcLen > SIZE_HARD_LIMIT || tgtLen > SIZE_HARD_LIMIT) {
+    const side = srcLen > SIZE_HARD_LIMIT ? "Source" : "Target";
+    const sz = _formatBytes(Math.max(srcLen, tgtLen));
+    return showError(
+      `${side} exceeds the 50 MB limit (${sz})`,
+      "In-browser JSON comparison is capped at 50 MB per pane to protect against out-of-memory crashes. " +
+      "Consider splitting the document or using a CLI tool for very large files."
+    );
+  }
+
+  const { unordered, keyBy, ignoreKeys, numericTolerance, ignoreCase } = getOpts();
+
+  // T19: cancel any in-flight worker request, then start a new one
+  const worker = _getWorker();
+  if (_activeDiffId !== null && worker) {
+    worker.postMessage({ type: "cancel", id: _activeDiffId });
+    _activeDiffId = null;
+  }
+  // T21: clear any pending timeout from a previous render
+  if (_workerTimeoutId !== null) { clearTimeout(_workerTimeoutId); _workerTimeoutId = null; }
+
+  document.getElementById("placeholder").classList.add("hidden");
+  document.getElementById("resultsWrap").classList.remove("hidden");
+
+  // T21: large-file informational banner
+  const totalLen = srcLen + tgtLen;
+  if (totalLen >= SIZE_LARGE) {
+    showInfo(
+      "Large-file mode",
+      `Combined input is ${_formatBytes(totalLen)}. The diff is running in a background worker — ` +
+      `the UI stays responsive. Cancel at any time with the Cancel button. ` +
+      `A 60-second timeout is set; cancel and retry if the input is pathologically deep.`
+    );
+  }
+
+  if (worker) {
+    // ── async path: parse + diff in the worker ──────────────────────────────
+    const id = ++_diffRequestId;
+    _activeDiffId = id;
+    _showDiffProgress("Parsing…");
+
+    worker.onmessage = function(evt) {
+      const msg = evt.data;
+      if (!msg || msg.id !== id) return;   // stale response — ignore
+
+      if (msg.type === "progress") {
+        _showDiffProgress(msg.phase === "diff" ? "Comparing…" : "Parsing…");
+        return;
+      }
+
+      // Terminal message — hide spinner and clear timeout
+      _hideDiffProgress();
+      if (_workerTimeoutId !== null) { clearTimeout(_workerTimeoutId); _workerTimeoutId = null; }
+      if (_activeDiffId !== id) return;   // superseded by a newer render()
+      _activeDiffId = null;
+
+      if (msg.type === "error") {
+        if (msg.name === "CancelError") return;
+        if (msg.parseTarget === "source") { if (!offerRepair("source", "Source", true)) showError("Source JSON is invalid", msg.message); return; }
+        if (msg.parseTarget === "target") { if (!offerRepair("target", "Target", true)) showError("Target JSON is invalid", msg.message); return; }
+        if (msg.name === "DiffDepthError") return showError("Input too deeply nested", msg.message);
+        return showError("Compare failed", msg.message);
+      }
+      if (msg.type === "result") _applyDiffResult(msg.changes, msg.precLost);
+    };
+
+    const inputFormat = document.querySelector('input[name="inputFormat"]:checked')?.value || "json";
+    worker.postMessage({
+      type: "diff", id,
+      srcText: srcText || "null",
+      tgtText: tgtText || "null",
+      opts: { unordered, keyBy, ignoreKeys, numericTolerance, ignoreCase, inputFormat }
+    });
+
+    // T21: safety timeout — cancel the worker if it doesn't respond in time
+    _workerTimeoutId = setTimeout(() => {
+      _workerTimeoutId = null;
+      if (_activeDiffId !== id) return;
+      worker.postMessage({ type: "cancel", id });
+      _activeDiffId = null;
+      _hideDiffProgress();
+      showError(
+        "Comparison timed out (60 s)",
+        "The diff worker did not complete within 60 seconds. The input may be extremely large or deeply nested. " +
+        "Try reducing the input size or increasing simplicity, or use the Python CLI for large files."
+      );
+    }, WORKER_TIMEOUT_MS);
+
+  } else {
+    // ── sync fallback (Worker not available) ────────────────────────────────
+    const srcFull = srcText || "null", tgtFull = tgtText || "null";
+    const parser = _getParser() || ((t) => JSON.parse(t));
+    let src, tgt;
+    try { src = parser(srcFull); }
+    catch (e) { return showError("Source JSON is invalid", e.message); }
+    try { tgt = parser(tgtFull); }
+    catch (e) { return showError("Target JSON is invalid", e.message); }
+    const precLost = [...new Set([...detectPrecisionLoss(srcFull), ...detectPrecisionLoss(tgtFull)])];
+    let rows;
+    try {
+      rows = diffCore(src, tgt, { unordered, keyBy, ignoreKeys, numericTolerance, ignoreCase });
+    } catch (e) {
+      if (e instanceof DiffDepthError || e.name === "DiffDepthError") return showError("Input too deeply nested", e.message);
+      throw e;
+    }
+    _applyDiffResult(rows, precLost);
+  }
+}
+
+/* ============ SELECTION + EXPORT ============ */
+// A checkbox carries its scope as data-segs = segId(prefixSegs). Roll-up is
+// structural (segment prefix), so keys containing "." "[" "]" never collide.
+// Uses filteredEntries (T11) so selection respects the active filter.
+function entriesUnder(idStr) {
+  return entriesUnderSegs(filteredEntries, JSON.parse(idStr));
+}
+function selectedEntries() {
+  return flatEntries.filter(e => selected.has(e.id));
+}
+function syncSelectionUI() {
+  document.querySelectorAll("#results .tsel").forEach(cb => {
+    const scope = entriesUnder(cb.dataset.segs);
+    const sel = scope.filter(e => selected.has(e.id)).length;
+    cb.checked = scope.length > 0 && sel === scope.length;
+    cb.indeterminate = sel > 0 && sel < scope.length;
+  });
+  const all = document.getElementById("selAllTable");
+  if (all) {
+    const n = filteredEntries.length, s = filteredEntries.filter(e => selected.has(e.id)).length;
+    all.checked = n > 0 && s === n;
+    all.indeterminate = s > 0 && s < n;
+  }
+  const count = selectedEntries().length;
+  document.getElementById("selCount").textContent = count;
+  document.getElementById("selTotal").textContent = flatEntries.length;
+  document.getElementById("clearSel").disabled    = count === 0;
+  document.getElementById("genTable").disabled    = count === 0;
+  document.getElementById("exportPatch").disabled = count === 0;
+}
+
+function sideVal(e, side) {
+  if (side === "from") return e.op === "added" ? undefined : e.from;
+  return e.op === "removed" ? undefined : e.to;
+}
+const cellStr = v => v === undefined ? "" : fmt(v);
+
+function buildMarkdown(rows) {
+  const esc = s => String(s).replace(/\|/g, "\\|").replace(/\n/g, " ");
+  let o = "| Path | Change | Source | Target |\n| --- | --- | --- | --- |\n";
+  rows.forEach(r => { o += `| ${esc(r.path)} | ${badgeLabel[r.op]} | ${esc(cellStr(sideVal(r,"from")))} | ${esc(cellStr(sideVal(r,"to")))} |\n`; });
+  return o;
+}
+function buildTSV(rows) {
+  const esc = s => String(s).replace(/[\t\n]/g, " ");
+  let o = "Path\tChange\tSource\tTarget\n";
+  rows.forEach(r => { o += [r.path, badgeLabel[r.op], cellStr(sideVal(r,"from")), cellStr(sideVal(r,"to"))].map(esc).join("\t") + "\n"; });
+  return o;
+}
+function buildCSV(rows) {
+  const q = s => '"' + String(s).replace(/"/g, '""') + '"';
+  let o = ["Path","Change","Source","Target"].map(q).join(",") + "\n";
+  rows.forEach(r => { o += [r.path, badgeLabel[r.op], cellStr(sideVal(r,"from")), cellStr(sideVal(r,"to"))].map(q).join(",") + "\n"; });
+  return o;
+}
+function buildHTMLTable(rows, inline) {
+  const cell = v => v === undefined ? '<span class="muted">—</span>' : escapeHtml(fmt(v));
+  const sty = {
+    table: 'border-collapse:collapse;font-family:Menlo,Consolas,monospace;font-size:13px',
+    th: 'border:1px solid #d3d7dd;padding:6px 10px;text-align:left;background:#f3f4f6',
+    td: 'border:1px solid #d3d7dd;padding:6px 10px;text-align:left;vertical-align:top'
+  };
+  let o = inline ? `<table style="${sty.table}"><thead><tr>` : `<table class="share"><thead><tr>`;
+  ["Path","Change","Source","Target"].forEach(h => o += inline ? `<th style="${sty.th}">${h}</th>` : `<th>${h}</th>`);
+  o += "</tr></thead><tbody>";
+  rows.forEach(r => {
+    const tds = [escapeHtml(r.path), badgeLabel[r.op], cell(sideVal(r,"from")), cell(sideVal(r,"to"))];
+    o += "<tr>";
+    tds.forEach((c, i) => {
+      if (inline) o += `<td style="${sty.td}">${c}</td>`;
+      else o += `<td class="${i===0?"tpath":i===1?"":"tval"}">${i===1?`<span class="pill ${r.op}">${c}</span>`:c}</td>`;
+    });
+    o += "</tr>";
+  });
+  return o + "</tbody></table>";
+}
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.remove("hidden"); t.style.opacity = "1";
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.classList.add("hidden"), 200); }, 1600);
+}
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); toast("Copied"); } catch (e) { toast("Copy failed — select manually"); }
+  document.body.removeChild(ta);
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast("Copied to clipboard"); }
+  catch (e) { fallbackCopy(text); }
+}
+async function copyRich(html, plain) {
+  try {
+    await navigator.clipboard.write([new ClipboardItem({
+      "text/html": new Blob([html], { type: "text/html" }),
+      "text/plain": new Blob([plain], { type: "text/plain" })
+    })]);
+    toast("Copied (rich) — paste into Docs, email, or Slack");
+  } catch (e) { copyText(plain); }
+}
+
+function openModal() {
+  modalRows = selectedEntries();
+  if (!modalRows.length) return;
+  document.getElementById("modalCount").textContent = modalRows.length;
+  document.getElementById("modalPreview").innerHTML = buildHTMLTable(modalRows, false);
+  openWithTrap("modal", "#modalClose");  // T18: focus trap
+}
+function closeModal() { closeWithTrap("modal"); }  // T18: restores focus
+
+function showError(title, detail) {
+  const b = document.getElementById("banner");
+  b.className = "banner";
+  b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><div><strong>${escapeHtml(title)}</strong><pre>${escapeHtml(detail)}</pre></div>`;
+  b.classList.remove("hidden");
+}
+function showWarning(title, detail) {
+  const b = document.getElementById("banner");
+  b.className = "banner warn";
+  b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg><div><strong>${escapeHtml(title)}</strong><pre>${escapeHtml(detail)}</pre></div>`;
+  b.classList.remove("hidden");
+}
+// T21: informational (blue) banner — used for large-file mode notice
+function showInfo(title, detail) {
+  const b = document.getElementById("banner");
+  b.className = "banner info";
+  b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><div><strong>${escapeHtml(title)}</strong><pre>${escapeHtml(detail)}</pre></div>`;
+  b.classList.remove("hidden");
+}
+
+/* ---- T21: input-size guard constants ---- */
+const SIZE_WARN      =    500_000;  //  500 KB — show amber count badge
+const SIZE_LARGE     =  2_000_000;  //    2 MB — informational "large-file mode" banner
+const SIZE_HARD_LIMIT = 50_000_000; //   50 MB — refuse to diff; too large for in-browser
+const WORKER_TIMEOUT_MS = 60_000;   //   60 s  — cancel worker if no result by then
+let _workerTimeoutId = null;        // handle for the timeout clearTimeout call
+
+function _formatBytes(n) {
+  if (n < 1024)       return n + " chars";
+  if (n < 1_048_576)  return (n / 1024).toFixed(1) + " KB";
+  return (n / 1_048_576).toFixed(1) + " MB";
+}
+
+function updateCounts() {
+  const srcLen = document.getElementById("source").value.length;
+  const tgtLen = document.getElementById("target").value.length;
+  const setCount = (id, len) => {
+    const el = document.getElementById(id);
+    el.textContent = _formatBytes(len);
+    el.classList.toggle("warn-size",   len >= SIZE_WARN      && len < SIZE_HARD_LIMIT);
+    el.classList.toggle("danger-size", len >= SIZE_HARD_LIMIT);
+    el.title = len >= SIZE_WARN
+      ? len >= SIZE_HARD_LIMIT
+        ? "File exceeds the 50 MB hard limit — comparison will be refused"
+        : "Large input — diff will run in a background worker"
+      : "";
+  };
+  setCount("srcCount", srcLen);
+  setCount("tgtCount", tgtLen);
+}
+
+document.getElementById("compareBtn").addEventListener("click", () => { lastCompared = true; selected.clear(); render(); });
+document.getElementById("onlyDiff").addEventListener("change", () => { if (lastCompared) renderView(); });
+document.getElementById("unordered").addEventListener("change", () => { if (lastCompared) { selected.clear(); render(); } });
+
+function setView(mode) {
+  viewMode = mode;
+  ["segTree","segTable","segRaw","seg3Way"].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    const active = (id === "segTree" && mode === "tree") || (id === "segTable" && mode === "table") ||
+                   (id === "segRaw" && mode === "raw") || (id === "seg3Way" && mode === "3way");
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-selected", String(active));
+  });
+  // T24: show/hide Base pane + expand panes grid to 3 columns
+  const basePane = document.getElementById("basePane");
+  const panes    = document.querySelector(".panes");
+  if (basePane && panes) {
+    basePane.classList.toggle("hidden", mode !== "3way");
+    panes.classList.toggle("three-way", mode === "3way");
+  }
+  if (lastCompared) renderView();
+  savePrefs();  // T16: persist viewMode preference
+}
+document.getElementById("segTree").addEventListener("click",  () => setView("tree"));
+document.getElementById("segTable").addEventListener("click", () => setView("table"));
+document.getElementById("segRaw").addEventListener("click",   () => setView("raw"));
+document.getElementById("seg3Way").addEventListener("click",  () => setView("3way"));
+
+// tree collapse/expand via delegation (ignore clicks on the checkbox)
+document.getElementById("results").addEventListener("click", e => {
+  // copy-path / copy-value row actions (must run before toggle/select logic)
+  const ra = e.target.closest(".row-act");
+  if (ra) {
+    e.stopPropagation();
+    if (ra.hasAttribute("data-copy-path")) copyText(ra.getAttribute("data-copy-path"));
+    else if (ra.hasAttribute("data-copy-val")) copyText(ra.getAttribute("data-copy-val"));
+    return;
+  }
+  if (e.target.tagName === "INPUT") return;
+
+  // T20: virtual-tree node click — toggle in _treeExpandedIds and re-render
+  const vtRow = e.target.closest("[data-vt-id]");
+  if (vtRow && vtRow.hasAttribute("data-container")) {
+    const id = vtRow.dataset.vtId;
+    if (_treeExpandedIds.has(id)) _treeExpandedIds.delete(id);
+    else _treeExpandedIds.add(id);
+    _renderVirtTree();
+    return;
+  }
+
+  // Standard (non-virtual) tree
+  const row = e.target.closest(".trow");
+  if (!row) return;
+  const node = row.parentElement;
+  if (node && node.hasAttribute("data-container")) {
+    const nowCollapsed = node.classList.toggle("collapsed");
+    node.setAttribute("aria-expanded", String(!nowCollapsed));  // T18
+    // Keep _treeExpandedIds in sync in case we switch to virtual mode
+    if (_virtRoot) {
+      const nId = JSON.stringify(
+        node.dataset.segs ? JSON.parse(node.dataset.segs) : []
+      );
+      if (nowCollapsed) _treeExpandedIds.delete(nId);
+      else _treeExpandedIds.add(nId);
+    }
+  }
+});
+
+// T18: tree keyboard navigation (arrow keys + Enter/Space)
+document.getElementById("results").addEventListener("keydown", e => {
+  const node = e.target.closest(".tnode");
+  if (!node) return;
+  const allNodes = [...document.querySelectorAll("#results .tnode:not(.collapsed .tnode)")];
+  const idx = allNodes.indexOf(node);
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    if (idx < allNodes.length - 1) allNodes[idx + 1].focus();
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    if (idx > 0) allNodes[idx - 1].focus();
+  } else if (e.key === "ArrowRight" && node.hasAttribute("data-container")) {
+    e.preventDefault();
+    if (node.classList.contains("collapsed")) { node.classList.remove("collapsed"); node.setAttribute("aria-expanded","true"); }
+    else { const first = node.querySelector(":scope > .tchildren > .tnode"); if (first) first.focus(); }
+  } else if (e.key === "ArrowLeft") {
+    e.preventDefault();
+    if (node.hasAttribute("data-container") && !node.classList.contains("collapsed")) {
+      node.classList.add("collapsed"); node.setAttribute("aria-expanded","false");
+    } else {
+      const parent = node.closest(".tchildren")?.closest(".tnode"); if (parent) parent.focus();
+    }
+  } else if (e.key === "Enter" || e.key === " ") {
+    if (node.hasAttribute("data-container")) {
+      e.preventDefault();
+      const nowCollapsed = node.classList.toggle("collapsed");
+      node.setAttribute("aria-expanded", String(!nowCollapsed));
+    }
+  }
+});
+
+// selection via delegation (table + tree)
+document.getElementById("results").addEventListener("change", e => {
+  const t = e.target;
+  if (t.id === "selAllTable") {
+    if (t.checked) flatEntries.forEach(en => selected.add(en.id));
+    else selected.clear();
+    syncSelectionUI();
+    return;
+  }
+  if (t.classList.contains("tsel")) {
+    const scope = entriesUnder(t.dataset.segs);
+    if (t.checked) scope.forEach(en => selected.add(en.id));
+    else scope.forEach(en => selected.delete(en.id));
+    syncSelectionUI();
+  }
+});
+
+// selection bar
+document.getElementById("selectAll").addEventListener("click", () => { filteredEntries.forEach(en => selected.add(en.id)); syncSelectionUI(); });
+document.getElementById("clearSel").addEventListener("click", () => { selected.clear(); syncSelectionUI(); });
+document.getElementById("genTable").addEventListener("click", openModal);
+// T17: JSON Patch export
+document.getElementById("exportPatch").addEventListener("click", () => {
+  const entries = selectedEntries();
+  if (!entries.length) return;
+  const patch = changesToPatch(entries);
+  const blob  = new Blob([JSON.stringify(patch, null, 2)], { type: "application/json" });
+  const a     = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "json-patch.json";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast("JSON Patch downloaded (" + patch.length + " op" + (patch.length !== 1 ? "s" : "") + ")");
+});
+
+// modal
+document.getElementById("modalClose").addEventListener("click", closeModal);
+document.getElementById("modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
+document.querySelectorAll("#modal [data-copy]").forEach(btn => btn.addEventListener("click", () => {
+  if (btn.dataset.copy === "md") copyText(buildMarkdown(modalRows));
+  else if (btn.dataset.copy === "tsv") copyText(buildTSV(modalRows));
+  else if (btn.dataset.copy === "rich") copyRich(buildHTMLTable(modalRows, true), buildTSV(modalRows));
+}));
+document.getElementById("dlCsv").addEventListener("click", () => {
+  const blob = new Blob([buildCSV(modalRows)], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = "json-diff.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href); toast("CSV downloaded");
+});
+// T13: split/unified toggle for raw view
+document.getElementById("rawSplit").addEventListener("click", () => {
+  rawMode = "split";
+  document.getElementById("rawSplit").classList.add("active");
+  document.getElementById("rawUnified").classList.remove("active");
+  if (lastCompared && viewMode === "raw") renderView();
+});
+document.getElementById("rawUnified").addEventListener("click", () => {
+  rawMode = "unified";
+  document.getElementById("rawUnified").classList.add("active");
+  document.getElementById("rawSplit").classList.remove("active");
+  if (lastCompared && viewMode === "raw") renderView();
+});
+
+document.getElementById("expandAll").addEventListener("click", () => {
+  if (_virtRoot && _virtScrollEl) {
+    // T20: virtual tree — add all container ids to expanded set
+    function collectIds(node) {
+      if (node.container) { _treeExpandedIds.add(node.id); if (node.children) node.children.forEach(collectIds); }
+    }
+    if (_virtRoot.children) _virtRoot.children.forEach(collectIds);
+    _renderVirtTree();
+  } else {
+    document.querySelectorAll("#results .tnode[data-container]").forEach(n => n.classList.remove("collapsed"));
+  }
+});
+document.getElementById("collapseAll").addEventListener("click", () => {
+  if (_virtRoot && _virtScrollEl) {
+    // T20: virtual tree — clear all expanded ids (fully collapsed)
+    _treeExpandedIds.clear();
+    _renderVirtTree();
+  } else {
+    const nodes = document.querySelectorAll("#results .tnode[data-container]");
+    nodes.forEach((n, i) => { if (i !== 0) n.classList.add("collapsed"); });
+  }
+});
+
+document.querySelectorAll(".mini").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const ta = document.getElementById(btn.dataset.target);
+    const act = btn.dataset.act;
+    if (act === "upload") { const f = document.querySelector('.pane-file[data-target="' + btn.dataset.target + '"]'); if (f) f.click(); return; }
+    if (act === "clear") { ta.value = ""; updateCounts(); refreshHighlight(ta.id); ta.focus(); return; }
+    if (act === "copy") { if (!ta.value) { toast("Nothing to copy"); return; } copyText(ta.value); return; }
+    if (act === "paste") {
+      try {
+        ta.value = await navigator.clipboard.readText();
+        updateCounts(); scheduleHighlight(ta.id); toast("Pasted from clipboard");
+      } catch (e) { ta.focus(); toast("Press " + (/Mac/i.test(navigator.platform) ? "⌘V" : "Ctrl+V") + " to paste"); }
+      return;
+    }
+    const label = btn.dataset.target.charAt(0).toUpperCase() + btn.dataset.target.slice(1);
+    // T15: minify
+    if (act === "minify") {
+      try { ta.value = JSON.stringify(JSON.parse(ta.value)); updateCounts(); refreshHighlight(ta.id); }
+      catch (e) { if (!offerRepair(ta.id, label, lastCompared)) showError(`Cannot minify ${btn.dataset.target}`, e.message); }
+      return;
+    }
+    // format
+    try { ta.value = JSON.stringify(JSON.parse(ta.value), null, 2); updateCounts(); refreshHighlight(ta.id); }
+    catch (e) { if (!offerRepair(ta.id, label, lastCompared)) showError(`Cannot format ${btn.dataset.target}`, e.message); }
+  });
+});
+// Per-pane file upload — loads a .json/.jsonc/.json5/.ndjson file into one pane
+// (distinct from "Load session", which restores both panes + settings).
+document.querySelectorAll(".pane-file").forEach(input => {
+  input.addEventListener("change", e => {
+    const file = e.target.files && e.target.files[0];
+    const targetId = input.dataset.target;
+    e.target.value = "";  // allow re-uploading the same file
+    if (!file) return;
+    if (file.size > SIZE_HARD_LIMIT) {
+      showError("File too large", `“${file.name}” is ${_formatBytes(file.size)}, above the 50 MB in-browser limit.`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const ta = document.getElementById(targetId);
+      ta.value = String(reader.result || "");
+      updateCounts(); refreshHighlight(targetId);
+      toast(`Loaded ${file.name} into ${targetId}`);
+      if (lastCompared) render();
+    };
+    reader.onerror = () => showError("Could not read file", `Failed to read “${file.name}”.`);
+    reader.readAsText(file);
+  });
+});
+
+document.getElementById("swapBtn").addEventListener("click", () => {
+  const s = document.getElementById("source"), t = document.getElementById("target");
+  [s.value, t.value] = [t.value, s.value]; updateCounts(); refreshBothHighlights();
+  if (lastCompared) render();
+});
+document.getElementById("editInputsBtn").addEventListener("click", expandInputs);
+document.getElementById("source").addEventListener("input", () => { updateCounts(); scheduleHighlight("source"); });
+document.getElementById("target").addEventListener("input", () => { updateCounts(); scheduleHighlight("target"); });
+
+// Editors are height-bounded (--editor-max); large documents scroll INSIDE the
+// editor. Keep the syntax-highlight overlay aligned by mirroring the textarea's
+// scroll offset onto its sibling <pre>.
+document.querySelectorAll(".editor-wrap").forEach(wrap => {
+  const ta = wrap.querySelector("textarea");
+  const pre = wrap.querySelector(".editor-highlight");
+  if (!ta || !pre) return;
+  ta.addEventListener("scroll", () => {
+    pre.scrollTop = ta.scrollTop;
+    pre.scrollLeft = ta.scrollLeft;
+  }, { passive: true });
+});
+// T24: base pane input → update count + re-render 3-way if active
+document.getElementById("base").addEventListener("input", () => {
+  const len = document.getElementById("base").value.length;
+  const el = document.getElementById("baseCount");
+  if (el) el.textContent = _formatBytes(len);
+  if (lastCompared && viewMode === "3way") renderView();
+});
+
+// New session: clear both documents + the current comparison and return to the
+// initial empty state. Confirms first when there's unsaved content so a stray
+// click can't wipe a large paste.
+function resetSession() {
+  ["source", "target", "base"].forEach(id => { document.getElementById(id).value = ""; });
+  updateCounts();
+  refreshBothHighlights();
+  const bc = document.getElementById("baseCount");
+  if (bc) bc.textContent = _formatBytes(0);
+  // clear filters back to defaults
+  document.getElementById("filterPath").value = "";
+  document.getElementById("filterValue").value = "";
+  document.getElementById("ftAdded").checked = true;
+  document.getElementById("ftRemoved").checked = true;
+  document.getElementById("ftChanged").checked = true;
+  syncTypeChips();
+  // clear results + selection state
+  selected.clear();
+  syncSelectionUI();
+  lastCompared = false;
+  lastRows = null; flatEntries = []; filteredEntries = [];
+  _treeExpandedIds = new Set();
+  navIdx = -1;
+  // back to the placeholder / fresh layout
+  document.getElementById("resultsWrap").classList.add("hidden");
+  document.getElementById("placeholder").classList.remove("hidden");
+  expandInputs();   // un-collapse editors + focus Source
+  toast("New session");
+}
+document.getElementById("newSessionBtn").addEventListener("click", () => {
+  const hasContent = document.getElementById("source").value
+    || document.getElementById("target").value
+    || document.getElementById("base").value;
+  if (hasContent) {
+    showConfirm("Start a new session? This clears both documents and the current comparison.", ok => { if (ok) resetSession(); });
+  } else {
+    resetSession();
+  }
+});
+
+/* ============ T23: SHAREABLE URL ============
+ * Encodes both JSON texts + options into the URL fragment (#state=<base64url>).
+ * All data stays in the browser — nothing is sent to any server.
+ * Privacy warning is shown before the URL is generated.
+ * Inlined from src/url-state.js (no export keyword).
+ */
+(function() {
+  const URL_STATE_PARAM = "state";
+  const STATE_VERSION   = 1;
+
+  function _b64ToBytes(b64) {
+    const bin = atob(b64.replace(/-/g,"+").replace(/_/g,"/"));
+    const b = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) b[i]=bin.charCodeAt(i); return b;
+  }
+  function _bytesToB64url(bytes) {
+    let bin=""; for(const b of bytes) bin+=String.fromCharCode(b);
+    return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+  }
+
+  async function _encodeState(state) {
+    const payload = JSON.stringify({ v: STATE_VERSION, ...state });
+    const bytes   = new TextEncoder().encode(payload);
+    if (typeof CompressionStream !== "undefined") {
+      try {
+        const cs=new CompressionStream("gzip"), w=cs.writable.getWriter();
+        w.write(bytes); w.close();
+        const chunks=[], r=cs.readable.getReader();
+        for(;;){ const {done,value}=await r.read(); if(done)break; chunks.push(value); }
+        const tot=chunks.reduce((n,c)=>n+c.length,0);
+        const out=new Uint8Array(1+tot); out[0]=0x02; let off=1;
+        for(const c of chunks){out.set(c,off);off+=c.length;}
+        return _bytesToB64url(out);
+      } catch(_) {}
+    }
+    const out=new Uint8Array(1+bytes.length); out[0]=0x01; out.set(bytes,1);
+    return _bytesToB64url(out);
+  }
+
+  async function _decodeState(encoded) {
+    const bytes=_b64ToBytes(encoded), ver=bytes[0], body=bytes.slice(1);
+    let json;
+    if(ver===0x02) {
+      const ds=new DecompressionStream("gzip"), w=ds.writable.getWriter();
+      w.write(body); w.close();
+      const chunks=[], r=ds.readable.getReader();
+      for(;;){const{done,value}=await r.read();if(done)break;chunks.push(value);}
+      const tot=chunks.reduce((n,c)=>n+c.length,0);
+      const buf=new Uint8Array(tot); let off=0;
+      for(const c of chunks){buf.set(c,off);off+=c.length;}
+      json=new TextDecoder().decode(buf);
+    } else if(ver===0x01) {
+      json=new TextDecoder().decode(body);
+    } else { throw new Error("Unknown state version: 0x"+ver.toString(16)); }
+    const s=JSON.parse(json);
+    if(!s||typeof s!=="object") throw new Error("Invalid state payload");
+    return s;
+  }
+
+  // Share URL button — show privacy warning before building URL
+  document.getElementById("shareUrlBtn").addEventListener("click", () => {
+    const srcText = document.getElementById("source").value;
+    const tgtText = document.getElementById("target").value;
+    if (!srcText && !tgtText) { toast("Nothing to share — paste JSON into both panes first"); return; }
+
+    // Privacy warning dialog (T23)
+    showConfirm(
+      "⚠ Privacy notice: The Share URL will embed both JSON documents verbatim " +
+      "in the URL fragment. Anyone who receives the URL can read both documents. " +
+      "Do not share URLs containing sensitive data.\n\nContinue?",
+      async (ok) => {
+        if (!ok) return;
+        const { unordered, onlyDiff, keyBy, ignoreKeys, numericTolerance, ignoreCase } = getOpts();
+        const inputFormat = document.querySelector('input[name="inputFormat"]:checked')?.value || "json";
+        const state = {
+          src: srcText, tgt: tgtText,
+          opts: { unordered, onlyDiff, viewMode, keyBy, ignoreKeys, numericTolerance, ignoreCase, inputFormat }
+        };
+        try {
+          const encoded = await _encodeState(state);
+          const url = location.href.replace(/#.*$/, "") + "#" + URL_STATE_PARAM + "=" + encoded;
+          await copyText(url);
+          toast("Share URL copied to clipboard");
+        } catch (e) { showError("Share URL failed", e.message); }
+      }
+    );
+  });
+
+  // On page load: restore state from URL fragment if present
+  (async function _restoreFromURL() {
+    try {
+      const fragment = location.hash.replace(/^#/, "");
+      const params   = new URLSearchParams(fragment);
+      const encoded  = params.get(URL_STATE_PARAM);
+      if (!encoded) return;
+      const state = await _decodeState(encoded);
+      if (!state || typeof state !== "object") return;
+      if (typeof state.src === "string") document.getElementById("source").value = state.src;
+      if (typeof state.tgt === "string") document.getElementById("target").value = state.tgt;
+      if (state.opts) {
+        const o = state.opts;
+        if (typeof o.unordered === "boolean")   document.getElementById("unordered").checked  = o.unordered;
+        if (typeof o.onlyDiff  === "boolean")   document.getElementById("onlyDiff").checked   = o.onlyDiff;
+        if (typeof o.ignoreCase=== "boolean")   document.getElementById("ignoreCase").checked = o.ignoreCase;
+        if (Array.isArray(o.ignoreKeys) && o.ignoreKeys.length)
+          document.getElementById("ignoreKeys").value = o.ignoreKeys.join(", ");
+        if (typeof o.numericTolerance === "number" && o.numericTolerance >= 0)
+          document.getElementById("numericTolerance").value = o.numericTolerance;
+        if (typeof o.keyBy === "string" && o.keyBy)
+          document.getElementById("arrayKeyField").value = o.keyBy;
+        if (o.viewMode === "table" || o.viewMode === "tree") setView(o.viewMode);
+        if (["json","jsonc","json5","ndjson"].includes(o.inputFormat)) {
+          const radio = document.querySelector(`input[name="inputFormat"][value="${o.inputFormat}"]`);
+          if (radio) radio.checked = true;
+        }
+      }
+      updateCounts(); refreshBothHighlights();
+      lastCompared = true; selected.clear(); render();
+      // Clean the hash so back/refresh doesn't keep re-loading
+      history.replaceState(null, "", location.pathname + location.search);
+      toast("Comparison restored from shared URL");
+    } catch (e) {
+      // Invalid/corrupt URL state — silently ignore
+      console.warn("Could not restore from URL state:", e.message);
+    }
+  })();
+})();
+
+/* ============ SAVE / LOAD SESSION ============ */
+function tryParse(txt) { try { return JSON.parse(txt); } catch (e) { return undefined; } }
+
+function saveSession() {
+  const srcText = document.getElementById("source").value;
+  const tgtText = document.getElementById("target").value;
+  const { unordered, onlyDiff, ignoreCase, ignoreKeys, numericTolerance, keyBy } = getOpts();
+  const session = {
+    _type: "json-compare-session", version: 1,
+    createdAt: new Date().toISOString(),
+    options: { unordered, onlyDiff, viewMode, ignoreCase, ignoreKeys, numericTolerance, keyBy },
+    source: tryParse(srcText) ?? null,
+    target: tryParse(tgtText) ?? null,
+    sourceText: srcText, targetText: tgtText
+  };
+  const blob = new Blob([JSON.stringify(session, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `json-compare-session-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast("Session saved");
+}
+
+function applySession(obj) {
+  let srcText, tgtText, opts = {};
+  if (Array.isArray(obj) && obj.length >= 2) {
+    // lenient: a plain [source, target] pair
+    srcText = JSON.stringify(obj[0], null, 2);
+    tgtText = JSON.stringify(obj[1], null, 2);
+  } else if (obj && typeof obj === "object") {
+    srcText = obj.sourceText != null ? obj.sourceText : ("source" in obj ? JSON.stringify(obj.source, null, 2) : undefined);
+    tgtText = obj.targetText != null ? obj.targetText : ("target" in obj ? JSON.stringify(obj.target, null, 2) : undefined);
+    opts = obj.options || {};
+  }
+  if (srcText === undefined || tgtText === undefined) {
+    showError("Not a valid session file", "Expected a saved session, a [source, target] array, or an object with \"source\" and \"target\".");
+    return;
+  }
+  document.getElementById("source").value = srcText;
+  document.getElementById("target").value = tgtText;
+  updateCounts();
+  if (typeof opts.unordered === "boolean")   document.getElementById("unordered").checked  = opts.unordered;
+  if (typeof opts.onlyDiff === "boolean")    document.getElementById("onlyDiff").checked   = opts.onlyDiff;
+  if (typeof opts.ignoreCase === "boolean")  document.getElementById("ignoreCase").checked  = opts.ignoreCase;
+  if (Array.isArray(opts.ignoreKeys))        document.getElementById("ignoreKeys").value    = opts.ignoreKeys.join(", ");
+  if (typeof opts.numericTolerance === "number") document.getElementById("numericTolerance").value = opts.numericTolerance;
+  if (typeof opts.keyBy === "string")        document.getElementById("arrayKeyField").value = opts.keyBy;
+  selected.clear();
+  lastCompared = true;
+  refreshBothHighlights();  // T15: update syntax highlighting after load
+  if (opts.viewMode === "table" || opts.viewMode === "tree") setView(opts.viewMode);
+  else render();
+  toast("Session loaded");
+}
+
+function loadSessionFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => { try { applySession(JSON.parse(reader.result)); } catch (e) { showError("Could not parse file", e.message); } };
+  reader.onerror = () => showError("Could not read file", "File read error");
+  reader.readAsText(file);
+}
+
+document.getElementById("saveSession").addEventListener("click", saveSession);
+document.getElementById("loadSession").addEventListener("click", () => document.getElementById("sessionFile").click());
+document.getElementById("sessionFile").addEventListener("change", e => { const f = e.target.files[0]; if (f) loadSessionFile(f); e.target.value = ""; });
+
+// drag a session .json onto the window to load it
+document.addEventListener("dragover", e => { if (e.dataTransfer && [...e.dataTransfer.types].includes("Files")) e.preventDefault(); });
+document.addEventListener("drop", e => {
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  e.preventDefault();
+  if (/\.json$/i.test(f.name)) loadSessionFile(f);
+});
+
+/* ============ SAVED LIBRARY (localStorage) ============ */
+const LS_KEY = "jsoncompare.library.v1";
+let lsOK = true;
+let library = { folders: [], items: [] };
+try {
+  const raw = localStorage.getItem(LS_KEY);
+  if (raw) { const p = JSON.parse(raw); if (p && Array.isArray(p.items) && Array.isArray(p.folders)) library = p; }
+} catch (e) { lsOK = false; }
+function persist() { if (!lsOK) return; try { localStorage.setItem(LS_KEY, JSON.stringify(library)); } catch (e) { lsOK = false; toast("Couldn't save to local storage"); } }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const expandedFolders = new Set();   // which folders are open in the drawer
+let libTab = "recent";               // "recent" (flat, newest-first) | "folders" (grouped)
+function setLibTab(tab) {
+  libTab = tab;
+  const r = document.getElementById("libTabRecent"), f = document.getElementById("libTabFolders");
+  r.classList.toggle("active", tab === "recent");
+  f.classList.toggle("active", tab === "folders");
+  r.setAttribute("aria-selected", tab === "recent");
+  f.setAttribute("aria-selected", tab === "folders");
+  renderLibrary();
+}
+
+const icoPencil = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+const icoTrash = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
+
+function currentDiffCount() {
+  const so = tryParse(document.getElementById("source").value);
+  const to = tryParse(document.getElementById("target").value);
+  if (so === undefined || to === undefined) return null;
+  return diffCore(so, to, { unordered: document.getElementById("unordered").checked }).filter(r => r.op !== "equal").length;
+}
+function doSave(name, folderId) {
+  const srcText = document.getElementById("source").value;
+  const tgtText = document.getElementById("target").value;
+  if (!srcText.trim() && !tgtText.trim()) { toast("Nothing to save yet"); return false; }
+  const { unordered, onlyDiff } = getOpts();
+  library.items.unshift({
+    id: uid(), name: name || ("Comparison " + new Date().toLocaleString()),
+    folderId: folderId || null, createdAt: new Date().toISOString(),
+    diffCount: currentDiffCount(), options: { unordered, onlyDiff, viewMode },
+    source: tryParse(srcText) ?? null, target: tryParse(tgtText) ?? null,
+    sourceText: srcText, targetText: tgtText
+  });
+  expandedFolders.add(folderId || "root");   // reveal where it landed
+  persist(); renderLibrary(); updateLibCount();
+  toast(lsOK ? "Saved to library" : "Saved for this session (local storage unavailable)");
+  return true;
+}
+function updateLibCount() {
+  const el = document.getElementById("libCount"), n = library.items.length;
+  el.textContent = n; el.classList.toggle("hidden", n === 0);
+}
+function itemHTML(it, folderOpts, showFolder) {
+  let meta = (it.diffCount == null ? "not parseable" : (it.diffCount + " diff" + (it.diffCount === 1 ? "" : "s"))) + " · " + new Date(it.createdAt).toLocaleString();
+  if (showFolder) {
+    const f = it.folderId && library.folders.find(x => x.id === it.folderId);
+    meta += " · " + (f ? "📁 " + f.name : "Ungrouped");
+  }
+  return `<div class="lib-item"><div class="info" data-open="${it.id}"><div class="iname">${escapeHtml(it.name)}</div><div class="imeta">${escapeHtml(meta)}</div></div>` +
+    `<div class="iactions"><select data-move="${it.id}" title="Move to folder">${folderOpts(it.folderId || null)}</select>` +
+    `<button class="miniico" data-act="rename" data-id="${it.id}" title="Rename">${icoPencil}</button>` +
+    `<button class="miniico" data-act="delete" data-id="${it.id}" title="Delete">${icoTrash}</button></div></div>`;
+}
+function renderLibrary() {
+  const body = document.getElementById("libBody");
+  // "+ New folder" belongs to the Folders tab only
+  const nf = document.getElementById("newFolderBtn");
+  if (nf) nf.classList.toggle("hidden", libTab !== "folders");
+
+  if (!library.items.length && !library.folders.length) {
+    body.innerHTML = `<div class="lib-empty">No saved comparisons yet.<br>Compare two JSONs, then press <b>Save current</b>.${lsOK ? "" : "<br><br>Note: this browser blocks local storage for files opened directly, so saves won't persist after closing. Use “Save session” to keep a file."}</div>`;
+    return;
+  }
+  const folderOpts = id => `<option value="">Ungrouped</option>` +
+    library.folders.map(f => `<option value="${f.id}"${f.id === id ? " selected" : ""}>${escapeHtml(f.name)}</option>`).join("");
+
+  // ── Recent tab: flat, newest-first list across all folders ───────────────
+  if (libTab === "recent") {
+    if (!library.items.length) {
+      body.innerHTML = `<div class="lib-empty">No saved comparisons yet.<br>Compare two JSONs, then press <b>Save current</b>.</div>`;
+      return;
+    }
+    const recent = [...library.items].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    body.innerHTML = recent.map(it => itemHTML(it, folderOpts, true)).join("");
+    return;
+  }
+
+  // ── Folders tab: grouped, collapsible folder view ────────────────────────
+  const icoFolder = `<svg class="ficon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6l2 3h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>`;
+  const groups = [{ id: "root", name: "Ungrouped" }, ...library.folders];
+  let html = "";
+  groups.forEach(g => {
+    const isRoot = g.id === "root";
+    const items = library.items.filter(it => (it.folderId || "root") === g.id);
+    if (isRoot && !items.length) return;
+    const open = expandedFolders.has(g.id) ? "open" : "";
+    html += `<div class="lib-folder ${open}"><div class="lib-folder-head" data-folder="${g.id}">` +
+      `<span class="fchev">▶</span>${icoFolder}<span class="fname">${escapeHtml(g.name)}</span><span class="fcount">${items.length}</span>`;
+    if (!isRoot) html += `<span class="factions"><button class="miniico" data-fact="rename" data-fid="${g.id}" title="Rename folder">${icoPencil}</button><button class="miniico" data-fact="delete" data-fid="${g.id}" title="Delete folder">${icoTrash}</button></span>`;
+    html += `</div><div class="lib-items">${items.map(it => itemHTML(it, folderOpts)).join("") || `<div class="lib-empty-sm">No comparisons in this folder</div>`}</div></div>`;
+  });
+  body.innerHTML = html;
+}
+
+function openDrawer() { setLibTab("recent"); openWithTrap("drawer", "#drawerClose"); }  // T18 — default to Recent
+document.getElementById("libTabRecent").addEventListener("click", () => setLibTab("recent"));
+document.getElementById("libTabFolders").addEventListener("click", () => setLibTab("folders"));
+function closeDrawer() { closeWithTrap("drawer"); }  // T18
+
+document.getElementById("libBtn").addEventListener("click", openDrawer);
+document.getElementById("drawerClose").addEventListener("click", closeDrawer);
+document.getElementById("drawer").addEventListener("click", e => { if (e.target.id === "drawer") closeDrawer(); });
+document.getElementById("newFolderBtn").addEventListener("click", () => {
+  showPrompt("New folder name", "", n => {
+    if (n && n.trim()) { library.folders.push({ id: uid(), name: n.trim() }); persist(); renderLibrary(); }
+  });
+});
+
+document.getElementById("libBody").addEventListener("click", e => {
+  const open = e.target.closest("[data-open]");
+  if (open) { const it = library.items.find(x => x.id === open.dataset.open); if (it) { applySession(it); closeDrawer(); } return; }
+  const fact = e.target.closest("[data-fact]");
+  if (fact) {
+    const f = library.folders.find(x => x.id === fact.dataset.fid); if (!f) return;
+    if (fact.dataset.fact === "rename") {
+      showPrompt("Rename folder", f.name, n => { if (n !== null) { f.name = n.trim() || f.name; persist(); renderLibrary(); } });
+    } else if (fact.dataset.fact === "delete") {
+      showConfirm(`Delete folder "${f.name}"? Its comparisons move to Ungrouped.`, ok => {
+        if (ok) { library.items.forEach(it => { if (it.folderId === f.id) it.folderId = null; }); library.folders = library.folders.filter(x => x.id !== f.id); persist(); renderLibrary(); }
+      });
+    }
+    return;
+  }
+  const act = e.target.closest("[data-act]");
+  if (act) {
+    const it = library.items.find(x => x.id === act.dataset.id); if (!it) return;
+    if (act.dataset.act === "rename") {
+      showPrompt("Rename comparison", it.name, n => { if (n !== null) { it.name = n.trim() || it.name; persist(); renderLibrary(); } });
+    } else if (act.dataset.act === "delete") {
+      showConfirm(`Delete "${it.name}"?`, ok => {
+        if (ok) { library.items = library.items.filter(x => x.id !== it.id); persist(); renderLibrary(); updateLibCount(); }
+      });
+    }
+    return;
+  }
+  const fh = e.target.closest("[data-folder]");
+  if (fh) { const id = fh.dataset.folder; expandedFolders.has(id) ? expandedFolders.delete(id) : expandedFolders.add(id); renderLibrary(); }
+});
+document.getElementById("libBody").addEventListener("change", e => {
+  const mv = e.target.closest("[data-move]");
+  if (mv) { const it = library.items.find(x => x.id === mv.dataset.move); if (it) { it.folderId = mv.value || null; persist(); renderLibrary(); } }
+});
+
+/* save modal */
+function fillSaveFolders() {
+  document.getElementById("saveFolder").innerHTML =
+    `<option value="">Ungrouped</option>` +
+    library.folders.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join("") +
+    `<option value="__new">+ New folder…</option>`;
+  document.getElementById("newFolderRow").classList.add("hidden");
+  document.getElementById("saveNewFolder").value = "";
+}
+function openSaveModal() {
+  closeDrawer();
+  fillSaveFolders();
+  document.getElementById("saveName").value = "";
+  openWithTrap("saveModal", "#saveName");  // T18: focus trap, focus input first
+}
+function closeSaveModal() { closeWithTrap("saveModal"); }  // T18
+document.getElementById("saveBtn").addEventListener("click", openSaveModal);
+document.getElementById("saveHereBtn").addEventListener("click", openSaveModal);
+document.getElementById("saveModalClose").addEventListener("click", closeSaveModal);
+document.getElementById("saveCancel").addEventListener("click", closeSaveModal);
+document.getElementById("saveModal").addEventListener("click", e => { if (e.target.id === "saveModal") closeSaveModal(); });
+document.getElementById("saveFolder").addEventListener("change", e => {
+  document.getElementById("newFolderRow").classList.toggle("hidden", e.target.value !== "__new");
+});
+document.getElementById("saveConfirm").addEventListener("click", () => {
+  let folderId = document.getElementById("saveFolder").value;
+  if (folderId === "__new") {
+    const nm = document.getElementById("saveNewFolder").value.trim();
+    if (nm) { const f = { id: uid(), name: nm }; library.folders.push(f); folderId = f.id; } else folderId = null;
+  }
+  if (doSave(document.getElementById("saveName").value.trim(), folderId || null)) closeSaveModal();
+});
+
+/* ============ T18: ACCESSIBILITY ============ */
+// Focus trap: keep keyboard focus inside `container` while it's open.
+// Returns a cleanup function that removes the listener.
+function installFocusTrap(container) {
+  const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+  function handler(e) {
+    if (e.key !== "Tab") return;
+    const focusable = [...container.querySelectorAll(FOCUSABLE)];
+    if (!focusable.length) { e.preventDefault(); return; }
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+    else            { if (document.activeElement === last)  { e.preventDefault(); first.focus(); } }
+  }
+  container.addEventListener("keydown", handler);
+  return () => container.removeEventListener("keydown", handler);
+}
+
+// Focus restoration: save current focus, restore on close.
+let _savedFocus = null;
+function saveFocus() { _savedFocus = document.activeElement; }
+function restoreFocus() { if (_savedFocus && _savedFocus.focus) { try { _savedFocus.focus(); } catch (e) {} } _savedFocus = null; }
+
+// Wire focus traps on the three modals/drawer
+let _trapCleanups = {};
+function openWithTrap(overlayId, firstFocusSelector) {
+  saveFocus();
+  const el = document.getElementById(overlayId);
+  el.classList.remove("hidden");
+  const inner = el.querySelector(".modal, .drawer") || el;
+  if (_trapCleanups[overlayId]) _trapCleanups[overlayId]();
+  _trapCleanups[overlayId] = installFocusTrap(inner);
+  const first = firstFocusSelector ? inner.querySelector(firstFocusSelector) : inner.querySelector('button,input,[tabindex="0"]');
+  if (first) setTimeout(() => first.focus(), 0);
+}
+function closeWithTrap(overlayId) {
+  document.getElementById(overlayId).classList.add("hidden");
+  if (_trapCleanups[overlayId]) { _trapCleanups[overlayId](); delete _trapCleanups[overlayId]; }
+  restoreFocus();
+}
+
+// Accessible inline dialog — replaces window.prompt / window.confirm
+// showPrompt(title, defaultVal, callback(value|null))
+// showConfirm(message, callback(confirmed:boolean))
+let _a11yDialogCleanup = null;
+function _showA11yDialog(html, onClose) {
+  saveFocus();
+  const overlay = document.createElement("div");
+  overlay.className = "a11y-dialog-overlay";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.innerHTML = `<div class="a11y-dialog">${html}</div>`;
+  document.body.appendChild(overlay);
+  if (_a11yDialogCleanup) _a11yDialogCleanup();
+  _a11yDialogCleanup = installFocusTrap(overlay.querySelector(".a11y-dialog"));
+  const close = (val) => {
+    if (_a11yDialogCleanup) { _a11yDialogCleanup(); _a11yDialogCleanup = null; }
+    document.body.removeChild(overlay);
+    restoreFocus();
+    onClose(val);
+  };
+  overlay.addEventListener("keydown", e => { if (e.key === "Escape") close(null); });
+  setTimeout(() => { const f = overlay.querySelector("input,button"); if (f) f.focus(); }, 0);
+  return { overlay, close };
+}
+
+function showPrompt(title, defaultVal, cb) {
+  const id = "a11yInput_" + Date.now();
+  const html = `<h3 id="a11yDlgH">${escapeHtml(title)}</h3>
+    <input id="${id}" type="text" value="${escapeHtml(defaultVal || "")}" aria-labelledby="a11yDlgH" autocomplete="off">
+    <div class="a11y-dialog-btns">
+      <button class="btn ghost sm" id="a11yCancel">Cancel</button>
+      <button class="btn primary sm" id="a11yOk">OK</button>
+    </div>`;
+  const { overlay, close } = _showA11yDialog(html, cb);
+  overlay.querySelector("#a11yOk").addEventListener("click", () => close(overlay.querySelector("#" + id).value));
+  overlay.querySelector("#a11yCancel").addEventListener("click", () => close(null));
+  overlay.querySelector("#" + id).addEventListener("keydown", e => { if (e.key === "Enter") close(overlay.querySelector("#" + id).value); });
+}
+
+function showConfirm(message, cb) {
+  const html = `<h3>Confirm</h3><p>${escapeHtml(message)}</p>
+    <div class="a11y-dialog-btns">
+      <button class="btn ghost sm" id="a11yCancel">Cancel</button>
+      <button class="btn primary sm" id="a11yOk">OK</button>
+    </div>`;
+  const { overlay, close } = _showA11yDialog(html, cb);
+  overlay.querySelector("#a11yOk").addEventListener("click", () => close(true));
+  overlay.querySelector("#a11yCancel").addEventListener("click", () => close(false));
+}
+
+/* ============ T16: PERSIST THEME + OPTIONS; RESPECT prefers-color-scheme ============ */
+const PREFS_KEY = "jsoncompare.prefs.v1";
+const sunIcon  = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+const moonIcon = '<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/>';
+
+function loadPrefs() {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (saved && typeof saved === "object") return saved;
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+function savePrefs() {
+  try {
+    const { onlyDiff, unordered, ignoreCase, ignoreKeys, numericTolerance, keyBy } = getOpts();
+    const theme = document.documentElement.getAttribute("data-theme") || "light";
+    const inputFormat = document.querySelector('input[name="inputFormat"]:checked')?.value || "json";
+    localStorage.setItem(PREFS_KEY, JSON.stringify({
+      theme, onlyDiff, unordered, viewMode,
+      ignoreCase, ignoreKeys, numericTolerance, keyBy,  // T14
+      inputFormat  // T22
+    }));
+  } catch (e) { /* ignore — file:// may block localStorage */ }
+}
+function applyTheme(t) {
+  document.documentElement.setAttribute("data-theme", t);
+  document.getElementById("themeIcon").innerHTML = t === "dark" ? moonIcon : sunIcon;
+}
+
+// On page load: restore saved prefs, or fall back to OS preference
+(function initPrefs() {
+  const saved = loadPrefs();
+  if (saved) {
+    const t = saved.theme === "dark" ? "dark" : "light";
+    applyTheme(t);
+    if (typeof saved.onlyDiff === "boolean")   document.getElementById("onlyDiff").checked  = saved.onlyDiff;
+    if (typeof saved.unordered === "boolean")  document.getElementById("unordered").checked = saved.unordered;
+    if (typeof saved.ignoreCase === "boolean") document.getElementById("ignoreCase").checked = saved.ignoreCase;
+    if (Array.isArray(saved.ignoreKeys) && saved.ignoreKeys.length)
+      document.getElementById("ignoreKeys").value = saved.ignoreKeys.join(", ");
+    if (typeof saved.numericTolerance === "number" && saved.numericTolerance >= 0)
+      document.getElementById("numericTolerance").value = saved.numericTolerance;
+    if (typeof saved.keyBy === "string" && saved.keyBy)
+      document.getElementById("arrayKeyField").value = saved.keyBy;
+    if (saved.viewMode === "table" || saved.viewMode === "tree") setView(saved.viewMode);
+    // T22: restore input format
+    if (["json","jsonc","json5","ndjson"].includes(saved.inputFormat)) {
+      const fmtEl = document.getElementById("fmt" + saved.inputFormat.toUpperCase().replace("JSON","JSON").replace("NDJSON","NDJSON"));
+      const radio = document.querySelector(`input[name="inputFormat"][value="${saved.inputFormat}"]`);
+      if (radio) radio.checked = true;
+    }
+  } else {
+    // No saved prefs: respect OS prefers-color-scheme
+    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if (prefersDark) applyTheme("dark");
+  }
+})();
+
+document.getElementById("themeBtn").addEventListener("click", () => {
+  const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+  applyTheme(next);
+  savePrefs();
+});
+// Save prefs when options change
+document.getElementById("onlyDiff").addEventListener("change", savePrefs);
+document.getElementById("unordered").addEventListener("change", savePrefs);
+// T14: options panel toggle
+document.getElementById("optionsBtn").addEventListener("click", () => {
+  const panel = document.getElementById("optionsPanel");
+  const visible = !panel.classList.contains("hidden");
+  panel.classList.toggle("hidden", visible);
+  document.getElementById("optionsBtn").classList.toggle("opt-active", !visible);
+});
+// Re-diff when options change
+["ignoreCase"].forEach(id => {
+  document.getElementById(id).addEventListener("change", () => { if (lastCompared) { selected.clear(); render(); } savePrefs(); });
+});
+// T22: re-diff when input format changes; reset worker so it picks up new parser code
+document.querySelectorAll('input[name="inputFormat"]').forEach(radio => {
+  radio.addEventListener("change", () => {
+    _diffWorker = null;  // force worker rebuild to include correct parser
+    if (lastCompared) { selected.clear(); render(); }
+    savePrefs();
+  });
+});
+["ignoreKeys", "numericTolerance", "arrayKeyField"].forEach(id => {
+  document.getElementById(id).addEventListener("input", () => { if (lastCompared) { selected.clear(); render(); } savePrefs(); });
+});
+
+// T11: filter bar wiring
+["filterPath", "filterValue"].forEach(id => {
+  document.getElementById(id).addEventListener("input", () => { if (lastCompared) renderView(); });
+});
+// Paint each change-type chip to match its checkbox state (single control —
+// no separate preset buttons). Called on init and after any change.
+function syncTypeChips() {
+  [["ftAdded", "ft-added"], ["ftRemoved", "ft-removed"], ["ftChanged", "ft-changed"]].forEach(([id, cls]) => {
+    const cb = document.getElementById(id);
+    const chip = cb && cb.closest("." + cls);
+    if (chip) chip.classList.toggle("on", cb.checked);
+  });
+}
+["ftAdded", "ftRemoved", "ftChanged"].forEach(id => {
+  document.getElementById(id).addEventListener("change", () => { syncTypeChips(); if (lastCompared) renderView(); });
+});
+syncTypeChips();   // initial paint (all on)
+document.getElementById("clearFilter").addEventListener("click", () => {
+  document.getElementById("filterPath").value = "";
+  document.getElementById("filterValue").value = "";
+  document.getElementById("ftAdded").checked = true;
+  document.getElementById("ftRemoved").checked = true;
+  document.getElementById("ftChanged").checked = true;
+  syncTypeChips();
+  if (lastCompared) renderView();
+});
+
+// T12: nav buttons
+document.getElementById("nextDiff").addEventListener("click", () => navStep(1));
+document.getElementById("prevDiff").addEventListener("click", () => navStep(-1));
+
+// T19/T21: cancel button — send cancel to worker, clear timeout, hide spinner
+document.getElementById("cancelDiff").addEventListener("click", () => {
+  const worker = _getWorker();
+  if (_activeDiffId !== null && worker) {
+    worker.postMessage({ type: "cancel", id: _activeDiffId });
+    _activeDiffId = null;
+  }
+  if (_workerTimeoutId !== null) { clearTimeout(_workerTimeoutId); _workerTimeoutId = null; }
+  _hideDiffProgress();
+});
+
+// Empty-state quick actions
+
+// Keyboard-shortcuts help popover
+const shortcutsPop = document.getElementById("shortcutsPop");
+function toggleShortcuts(force) {
+  const show = typeof force === "boolean" ? force : shortcutsPop.classList.contains("hidden");
+  shortcutsPop.classList.toggle("hidden", !show);
+}
+document.getElementById("helpBtn").addEventListener("click", () => toggleShortcuts());
+document.addEventListener("click", e => {
+  if (shortcutsPop.classList.contains("hidden")) return;
+  if (!shortcutsPop.contains(e.target) && e.target.id !== "helpBtn" && !document.getElementById("helpBtn").contains(e.target))
+    toggleShortcuts(false);
+});
+
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { lastCompared = true; selected.clear(); render(); }
+  if (e.key === "Escape") { closeModal(); closeDrawer(); closeSaveModal(); toggleShortcuts(false); }
+  // "?" opens the shortcuts help (when not typing in a field)
+  if (e.key === "?" ) {
+    const tag = document.activeElement ? document.activeElement.tagName : "";
+    if (tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT") { toggleShortcuts(); e.preventDefault(); }
+  }
+  // T12: n / p navigate between diffs when focus is not in a text field
+  if (!e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+    const tag = document.activeElement ? document.activeElement.tagName : "";
+    if (tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT") {
+      if (e.key === "n") { navStep(1);  e.preventDefault(); }
+      if (e.key === "p") { navStep(-1); e.preventDefault(); }
+    }
+  }
+});
+
+updateCounts();
+updateLibCount();
+refreshBothHighlights();  // T15: initial highlight pass (textareas may be empty on load)
+</script>
+</body>
+</html>
