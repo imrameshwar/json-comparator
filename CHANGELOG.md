@@ -5,6 +5,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.4] — 2026-06-10
+
+Post-validation fixes: declined-repair silent failure, index-parity test, mobile 390 px visual pass, repo hygiene.
+
+### Fixed
+
+- **Declined auto-repair no longer silently drops the error banner** — when invalid JSON triggers the auto-repair dialog and the user clicks Cancel, the standard parse-error banner (with line/column and "Jump to error" button) is now shown instead of nothing. Covered all five callsites: worker parse errors for Source and Target, sync-fallback parse errors for Source and Target, and the Format/Minify button path (which applies to all three panes including Base).
+
+---
+
 ## [2.3] — 2026-06-10
 
 Enhancement plan **Phase C** — resizable split panes, Raw scroll sync, and word-level Raw highlighting (P1-3, P1-4, P1-5). No architectural change; DIFF-CORE byte-identical, CSP intact (`connect-src 'none'`), all element IDs preserved (one new ID, `paneResizer`).

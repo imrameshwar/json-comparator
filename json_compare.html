@@ -1647,7 +1647,9 @@ function repairJSON(raw) {
 }
 // Offer to auto-repair an invalid pane; applies only after the user confirms.
 // Returns true if a repair was offered, false if nothing could be repaired.
-function offerRepair(targetId, label, recompare) {
+// onDecline (optional): called when the user clicks Cancel — use to show the
+// standard parse-error banner so declining never leaves a silent failure.
+function offerRepair(targetId, label, recompare, onDecline) {
   const ta = document.getElementById(targetId);
   if (!ta) return false;
   const repaired = repairJSON(ta.value);
@@ -1656,7 +1658,7 @@ function offerRepair(targetId, label, recompare) {
     `${label} isn’t valid JSON — it looks truncated or has extra characters. ` +
     `Auto-repair it to the closest valid JSON? This replaces the current ${label.toLowerCase()} content.`,
     ok => {
-      if (!ok) return;
+      if (!ok) { if (onDecline) onDecline(); return; }
       ta.value = repaired.text;
       updateCounts(); refreshHighlight(targetId);
       toast(`Repaired ${label} JSON`);
@@ -2578,8 +2580,8 @@ function render() {
 
       if (msg.type === "error") {
         if (msg.name === "CancelError") return;
-        if (msg.parseTarget === "source") { if (!offerRepair("source", "Source", true)) showParseError("source", "Source", msg.message); return; }
-        if (msg.parseTarget === "target") { if (!offerRepair("target", "Target", true)) showParseError("target", "Target", msg.message); return; }
+        if (msg.parseTarget === "source") { if (!offerRepair("source", "Source", true, () => showParseError("source", "Source", msg.message))) showParseError("source", "Source", msg.message); return; }
+        if (msg.parseTarget === "target") { if (!offerRepair("target", "Target", true, () => showParseError("target", "Target", msg.message))) showParseError("target", "Target", msg.message); return; }
         if (msg.name === "DiffDepthError") return showError("Input too deeply nested", msg.message);
         return showError("Compare failed", msg.message);
       }
@@ -2614,9 +2616,9 @@ function render() {
     const parser = _getParser() || ((t) => JSON.parse(t));
     let src, tgt;
     try { src = parser(srcFull); }
-    catch (e) { return showParseError("source", "Source", e.message); }
+    catch (e) { if (!offerRepair("source", "Source", true, () => showParseError("source", "Source", e.message))) showParseError("source", "Source", e.message); return; }
     try { tgt = parser(tgtFull); }
-    catch (e) { return showParseError("target", "Target", e.message); }
+    catch (e) { if (!offerRepair("target", "Target", true, () => showParseError("target", "Target", e.message))) showParseError("target", "Target", e.message); return; }
     const precLost = [...new Set([...detectPrecisionLoss(srcFull), ...detectPrecisionLoss(tgtFull)])];
     let rows;
     try {
@@ -3132,12 +3134,12 @@ document.querySelectorAll(".mini").forEach(btn => {
     // T15: minify
     if (act === "minify") {
       try { ta.value = JSON.stringify(JSON.parse(ta.value)); updateCounts(); refreshHighlight(ta.id); }
-      catch (e) { if (!offerRepair(ta.id, label, lastCompared)) showError(`Cannot minify ${btn.dataset.target}`, e.message); }
+      catch (e) { if (!offerRepair(ta.id, label, lastCompared, () => showError(`Cannot minify ${btn.dataset.target}`, e.message))) showError(`Cannot minify ${btn.dataset.target}`, e.message); }
       return;
     }
     // format
     try { ta.value = JSON.stringify(JSON.parse(ta.value), null, 2); updateCounts(); refreshHighlight(ta.id); }
-    catch (e) { if (!offerRepair(ta.id, label, lastCompared)) showError(`Cannot format ${btn.dataset.target}`, e.message); }
+    catch (e) { if (!offerRepair(ta.id, label, lastCompared, () => showError(`Cannot format ${btn.dataset.target}`, e.message))) showError(`Cannot format ${btn.dataset.target}`, e.message); }
   });
 });
 // Per-pane file upload — loads a .json/.jsonc/.json5/.ndjson file into one pane
