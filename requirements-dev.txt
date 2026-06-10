@@ -1,0 +1,2 @@
+# Dev-only dependencies. The CLI itself (json_compare.py) has zero runtime deps.
+pytest>=8.0

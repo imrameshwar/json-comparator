@@ -1,0 +1,7 @@
+# Python dev tooling config. The CLI (json_compare.py) remains zero-dependency;
+# pytest is a dev-only dependency used to run the test suite and CI.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+# Put the repo root on sys.path so tests can `import json_compare` without packaging.
+pythonpath = ["."]

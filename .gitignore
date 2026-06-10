@@ -4,3 +4,8 @@ dist/
 .pytest_cache/
 __pycache__/
 *.pyc
+
+# Local scratch / ad-hoc test inputs and backups — not part of the project
+.v2/
+.verify/
+*.BACKUP.html

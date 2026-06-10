@@ -1,0 +1,129 @@
+[
+  {
+    "name": "empty_object_equal",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": null,
+    "description": "{} vs {} \u2014 no differences"
+  },
+  {
+    "name": "null_vs_object",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": null,
+    "description": "null vs {} \u2014 type change"
+  },
+  {
+    "name": "null_vs_number",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": null,
+    "description": "null vs 5 \u2014 type change"
+  },
+  {
+    "name": "array_vs_object",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": null,
+    "description": "[] vs {} \u2014 type change"
+  },
+  {
+    "name": "crud",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": null,
+    "description": "changed b, removed c, added d"
+  },
+  {
+    "name": "type_changed",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": null,
+    "description": "number->string and boolean->number"
+  },
+  {
+    "name": "nested",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": null,
+    "description": "deeply nested scalar change"
+  },
+  {
+    "name": "unicode_keys",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": null,
+    "description": "unicode/emoji keys and a literal dotted key"
+  },
+  {
+    "name": "arrays_positional",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": null,
+    "description": "positional change + trailing add"
+  },
+  {
+    "name": "array_length_shrink",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": null,
+    "description": "trailing elements removed"
+  },
+  {
+    "name": "arrays_of_objects",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": null,
+    "description": "array of objects, one nested value changed"
+  },
+  {
+    "name": "unordered_no_dups",
+    "options": {
+      "unordered": true
+    },
+    "knownDivergence": null,
+    "description": "unordered, distinct values: removed 2, added 4"
+  },
+  {
+    "name": "unordered_dups",
+    "options": {
+      "unordered": true
+    },
+    "description": "unordered with duplicate multiplicity \u2014 CLI drops the count (B1); core reports one removed 1"
+  },
+  {
+    "name": "big_number",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": "B6",
+    "description": "integer > 2^53 \u2014 JS JSON.parse rounds (no diff); Python keeps precision (reports changed)"
+  },
+  {
+    "name": "wide",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": null,
+    "description": "500 keys; a few changed/added/removed/type-changed"
+  },
+  {
+    "name": "deep",
+    "options": {
+      "unordered": false
+    },
+    "knownDivergence": null,
+    "description": "150-level nested object, deepest leaf changed"
+  }
+]
