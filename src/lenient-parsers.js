@@ -166,7 +166,7 @@ export function parseJSON5(text) {
       return parseInt(src.slice(start, pos), 16);
     }
     // Regular number (including leading dot: .5)
-    while (pos < src.length && /[0-9.eE+\-]/.test(src[pos])) pos++;
+    while (pos < src.length && /[0-9.eE+-]/.test(src[pos])) pos++;
     const raw = src.slice(start, pos);
     const v = Number(raw);
     if (isNaN(v) && raw !== "NaN") err(`invalid number '${raw}'`);

@@ -7,7 +7,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["node_modules/**", "coverage/**", "dist/**"],
+    ignores: ["node_modules/**", "coverage/**", "dist/**", ".v2/**", ".verify/**"],
   },
   js.configs.recommended,
   {
@@ -17,7 +17,18 @@ export default [
       sourceType: "module",
       globals: {
         ...globals.node,
+        ...globals.browser,
       },
+    },
+    rules: {
+      // Allow the conventional `_` throwaway (e.g. `catch (_)`) and the
+      // `({ segs, ...rest }) => rest` strip-a-field idiom used across the tests.
+      "no-unused-vars": ["error", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        caughtErrorsIgnorePattern: "^_",
+        ignoreRestSiblings: true,
+      }],
     },
   },
 ];

@@ -3,7 +3,6 @@ import { describe, it, expect } from "vitest";
 import { diff } from "../src/diff-core.js";
 
 const diffs = (a, b, opts) => diff(a, b, opts).filter(c => c.op !== "equal").map(({ segs, ...c }) => c);
-const equals = (a, b, opts) => diff(a, b, opts).filter(c => c.op === "equal").map(({ segs, ...c }) => c);
 
 // ── ignoreKeys ────────────────────────────────────────────────────────────────
 describe("ignoreKeys option", () => {

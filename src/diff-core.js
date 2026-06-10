@@ -168,7 +168,7 @@ function _diffArrayKeyed(src, tgt, path, segs, unordered, keyBy, out, depth, opt
   // Matched pairs → recurse (in source order)
   srcMap.forEach(({ si, item: srcItem }, k) => {
     if (tgtMap.has(k)) {
-      const { ti, item: tgtItem } = tgtMap.get(k);
+      const { item: tgtItem } = tgtMap.get(k);
       _walk(srcItem, tgtItem, `${path}[${si}]`, segs.concat([{ i: si }]), unordered, keyBy, out, depth + 1, opts);
     }
   });

@@ -39,8 +39,7 @@ export function threeWayDiff(base, left, right, opts, diffFn) {
   const leftChanges  = diffFn(base, left,  o).filter(c => c.op !== "equal");
   const rightChanges = diffFn(base, right, o).filter(c => c.op !== "equal");
 
-  // Index by canonical path id
-  const leftMap  = new Map(leftChanges.map(c  => [_id(c),  c]));
+  // Index right changes by canonical path id (left is iterated directly below).
   const rightMap = new Map(rightChanges.map(c => [_id(c),  c]));
 
   const result = [];

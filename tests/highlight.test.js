@@ -50,10 +50,6 @@ function tokenizeJSON(text) {
     i++;
   }
   return out;
-
-  function escHtml(s) {
-    return s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-  }
 }
 
 // Minimal helpers for assertions

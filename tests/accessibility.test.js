@@ -3,15 +3,16 @@
 import { describe, it, expect } from "vitest";
 
 // ── Focus trap helper (pure logic) ───────────────────────────────────────────
-// focusableSelectors: CSS selector string for all focusable elements.
-const focusableSelectors = [
+// _focusableSelectors: reference list of focusable-element selectors (the real
+// selector string getFocusable below simulates). Kept for documentation.
+const _focusableSelectors = [
   'a[href]', 'button:not([disabled])', 'input:not([disabled])',
   'select:not([disabled])', 'textarea:not([disabled])',
   '[tabindex]:not([tabindex="-1"])'
 ].join(", ");
 
 // getFocusableElements: pure logic test (using a mock DOM representation)
-function getFocusable(elements, containerTags) {
+function getFocusable(elements, _containerTags) {
   // Simplified: given an array of {tag, disabled, tabindex} objects,
   // return indices that would be focusable.
   return elements

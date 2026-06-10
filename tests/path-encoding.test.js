@@ -79,7 +79,13 @@ describe("segment helpers", () => {
 
 describe("selection roll-up over keys with . [ ]", () => {
   const src = { a: { b: 1, c: 2 }, "a.b": 10, x: [5], "x[0]": 100 };
-  const tgt = { a: { b: 9, c: 9 }, "a.b": 11, x: [6], "x[0]": 101 };
+  // x gains an element (append) rather than a same-index replace. A scalar
+  // replace is intentionally emitted as remove+add at the SAME index (see the
+  // diff-core "element replacement shows as remove+add" test), which would put
+  // two changes at x[0] — orthogonal to what this block checks (container
+  // roll-up vs. a like-named literal key). An append gives x exactly one
+  // descendant change, keeping these assertions about path encoding, not LCS.
+  const tgt = { a: { b: 9, c: 9 }, "a.b": 11, x: [5, 6], "x[0]": 101 };
   const entries = diffs(src, tgt);
 
   it("a container rolls up only its true descendants", () => {
@@ -93,7 +99,7 @@ describe("selection roll-up over keys with . [ ]", () => {
 
   it("an array container does not capture a like-named literal key", () => {
     const under = entriesUnderSegs(entries, [{ k: "x" }]).map((e) => segId(e.segs));
-    expect(under).toEqual([segId([{ k: "x" }, { i: 0 }])]);
+    expect(under).toEqual([segId([{ k: "x" }, { i: 1 }])]);
     expect(under).not.toContain(segId([{ k: "x[0]" }]));
   });
 
