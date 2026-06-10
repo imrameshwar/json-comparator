@@ -29,10 +29,11 @@ If a pane isn't valid JSON, the error banner names the **line and column** of th
 
 ### Features
 
-**Two ways to view the diff**
+**Ways to view the diff**
 
 - **Tree view** (default) — the JSON structure as a collapsible tree. Every node is color-coded: green = added, red = removed, amber = a changed value, and violet = *contains changes* (any parent whose descendants differ, however deep). Each container shows a badge counting the changes inside it. Unchanged branches auto-collapse so you land on the differences.
 - **Table view** — a flat list of every change with its path, e.g. `$.address.geo.lng`.
+- **Raw view** — a side-by-side (or unified) text diff of the two documents, pretty-printed. Changed lines are highlighted, and within each changed line a **word-level diff** marks just the parts that actually differ, so the real change stands out even on long lines. The two side-by-side columns **scroll in sync**. Use the Split / Unified toggle in the view's header to switch layouts.
 
 **Differences only / All fields** — toggle between showing just the changes or every field including unchanged ones.
 
@@ -47,7 +48,7 @@ If a pane isn't valid JSON, the error banner names the **line and column** of th
 
 **Save / Load session files** — **Save session** downloads a single `.json` bundling both documents plus your settings. **Load session** (or just drag a `.json` file onto the page) restores everything. This is the portable backup — share it or move it between machines. Import also accepts a plain `[source, target]` array.
 
-**Per-pane tools** — each input has **Copy**, **Paste**, **Format** (pretty-print), and **Clear**. **Swap** exchanges source and target.
+**Per-pane tools** — each input has **Upload**, **Paste**, **Format** (pretty-print), **Minify**, **Copy**, and **Clear**. **Swap** exchanges source and target. Drag the **divider** between the two editors to give more width to the larger document — double-click it to reset to 50/50, or focus it and use ← / → (5% steps) and Home / End. The split is remembered between sessions.
 
 **Other** — light/dark theme toggle, live character counts, and an "Unordered scalar arrays" option that ignores order when comparing arrays of primitives.
 

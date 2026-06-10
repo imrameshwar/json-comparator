@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.3] — 2026-06-10
+
+Enhancement plan **Phase C** — resizable split panes, Raw scroll sync, and word-level Raw highlighting (P1-3, P1-4, P1-5). No architectural change; DIFF-CORE byte-identical, CSP intact (`connect-src 'none'`), all element IDs preserved (one new ID, `paneResizer`).
+
+### Added
+
+- **Resizable Source / Target panes (P1-3)** — a draggable divider between the two editors lets you give more width to the larger document. Drag to re-proportion, **double-click to reset to 50/50**, and the ratio persists across sessions (`splitRatio` in prefs). The handle is keyboard-accessible (`role="separator"`, focusable): **←/→** adjust by 5%, **Home/End** jump to the 20%/80% bounds, **Enter/Space** resets. The split grid uses `--split-a` / `--split-b` custom properties; the handle is hidden in 3-Way mode and below 800 px (where panes stack). New ID: `paneResizer`.
+- **Word-level highlighting in Raw view (P1-5)** — for changed lines, a token-level diff now wraps only the parts that actually differ in `<mark class="seg-add">` / `<mark class="seg-del">`, so on long lines the real change is visible instead of the whole line being flagged. Works in both Split and Unified Raw modes; capped at lines under 1,000 characters (longer lines fall back to whole-line highlighting to keep rendering fast). All token content is HTML-escaped.
+
+### Changed
+
+- **Raw split panes scroll in sync (P1-4)** — the two Raw columns now scroll together: moving one mirrors the other (vertical and horizontal), with a re-entrancy guard to avoid feedback loops. To enable independent-yet-synced scrolling, `.raw-split` switched from CSS grid to flexbox so each pane is its own scroll container (grid auto-rows stretched the panes and prevented per-pane scroll).
+
+### Notes
+
+- `index.html` (the GitHub Pages build) is regenerated from `json_compare.html` by re-applying the feedback widget + relaxed-CSP delta; the two files differ only by that delta. Verified: `npm test` green (321 tests incl. diff-core parity), `node --check` clean, no new duplicate element IDs.
+
+---
+
 ## [2.2] — 2026-06-10
 
 Enhancement plan **Phase B** — onboarding, per-view control gating, and a narrow/mobile pass (P1-1, P1-2, P1-7). No architectural change; DIFF-CORE byte-identical, CSP intact (`connect-src 'none'`), all element IDs preserved.

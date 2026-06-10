@@ -93,11 +93,22 @@
   .icon-btn:hover { color: var(--text); border-color: var(--border-strong); }
   .icon-btn svg { width: 18px; height: 18px; }
 
-  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-  @media (max-width: 800px) { .panes { grid-template-columns: 1fr; } }
-  /* T24: three-way mode — add a third "Base" pane */
-  .panes.three-way { grid-template-columns: 1fr 1fr 1fr; }
-  @media (max-width: 900px) { .panes.three-way { grid-template-columns: 1fr; } }
+  /* P1-3: two-way grid is Source | resizer | Target; the 18px middle track
+     replaces the old gap so the draggable divider lives in it. */
+  .panes { display: grid; grid-template-columns: var(--split-a, 1fr) 18px var(--split-b, 1fr); gap: 0; }
+  @media (max-width: 800px) { .panes { grid-template-columns: 1fr; gap: 18px; } }
+  /* T24: three-way mode — add a third "Base" pane (resizer hidden, gap restored) */
+  .panes.three-way { grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+  @media (max-width: 900px) { .panes.three-way { grid-template-columns: 1fr; gap: 18px; } }
+  /* P1-3: draggable Source/Target divider — two-way desktop only */
+  .pane-resizer { position: relative; align-self: stretch; cursor: col-resize; display: grid; place-items: center; touch-action: none; }
+  .pane-resizer::before { content: ""; width: 4px; height: 48px; max-height: 60%; border-radius: 3px; background: var(--border-strong); transition: background var(--transition); }
+  .pane-resizer:hover::before, .pane-resizer.dragging::before, .pane-resizer:focus-visible::before { background: var(--accent); }
+  .pane-resizer:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  .panes.three-way .pane-resizer { display: none; }
+  @media (max-width: 800px) { .pane-resizer { display: none; } }
+  body.col-resizing { cursor: col-resize; user-select: none; }
+  body.col-resizing textarea { pointer-events: none; }
   .pane.base .dot { background: var(--text-3); }
   /* Three-way merge result table */
   .tw-row { display: grid; grid-template-columns: 40px minmax(160px,28%) 1fr 1fr 1fr; border-bottom: 1px solid var(--border); min-height: 40px; box-sizing: border-box; }
@@ -418,8 +429,14 @@
   .raw-line.r-added   .raw-code { color: var(--added); }
   .raw-line.r-removed .raw-code { color: var(--removed); }
   .raw-line.r-equal   .raw-code { color: var(--text-2); }
-  .raw-split { display: grid; grid-template-columns: 1fr 1fr; }
-  .raw-split-pane { overflow: auto; border-right: 1px solid var(--border); }
+  /* P1-5: word-level (intra-line) highlight inside changed raw lines */
+  .raw-code mark.seg-add, .raw-code mark.seg-del { padding: 0 1px; border-radius: 3px; font-weight: 600; }
+  .raw-line.r-added   .raw-code mark.seg-add { background: var(--added-line);   color: var(--added); }
+  .raw-line.r-removed .raw-code mark.seg-del { background: var(--removed-line); color: var(--removed); }
+  /* P1-4: flex (not grid) so each pane is its own scroll container and the two
+     can be scroll-synced; grid auto-rows would stretch panes and prevent it. */
+  .raw-split { display: flex; align-items: stretch; max-height: 70vh; }
+  .raw-split-pane { flex: 1 1 0; min-width: 0; overflow: auto; border-right: 1px solid var(--border); }
   .raw-split-pane:last-child { border-right: none; }
   .raw-split-head { font-size: 11.5px; font-weight: 600; color: var(--text-3); padding: 6px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: .05em; }
   .raw-toggle { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 2px; gap: 2px; }
@@ -612,6 +629,8 @@
           <textarea id="source" spellcheck="false" placeholder="Paste or type your Source JSON here…"></textarea>
         </div>
       </div>
+      <!-- P1-3: drag to re-proportion Source/Target (two-way desktop only) -->
+      <div class="pane-resizer" id="paneResizer" role="separator" aria-orientation="vertical" aria-label="Resize Source and Target panels" tabindex="0" aria-valuemin="20" aria-valuemax="80" aria-valuenow="50" title="Drag to resize · double-click to reset"></div>
       <div class="pane target">
         <div class="pane-head">
           <span class="dot"></span><span class="name">Target</span><span class="side-tag">after</span>
@@ -2006,17 +2025,62 @@ function buildTree(changes) {
 
 /* ---- Raw text view rendering (T13) ---- */
 let rawMode = "split";  // "split" | "unified"
+let splitRatio = null;  // P1-3: Source pane's share of the two-pane width (0.2–0.8); null = 50/50
+
+// P1-5: word-level (intra-line) diff. Given a paired old/new line, returns HTML
+// for each side with the differing token runs wrapped in <mark>. Tokens are runs
+// of word chars / whitespace / punctuation; common tokens (token-level LCS) stay
+// plain. Capped at long lines so a pathological line can't stall the render.
+function wordDiffMarks(oldLine, newLine) {
+  if (oldLine.length > 1000 || newLine.length > 1000)
+    return { oldHtml: escapeHtml(oldLine), newHtml: escapeHtml(newLine) };
+  const TOK = /[A-Za-z0-9_]+|\s+|[^A-Za-z0-9_\s]+/g;
+  const a = oldLine.match(TOK) || [], b = newLine.match(TOK) || [];
+  const n = a.length, m = b.length;
+  // token-level LCS (DP); token counts stay small for sub-1000-char lines
+  const dp = [];
+  for (let i = 0; i <= n; i++) dp.push(new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const aCommon = new Array(n).fill(false), bCommon = new Array(m).fill(false);
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) { aCommon[i] = bCommon[j] = true; i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+    else j++;
+  }
+  const build = (toks, common, cls) => {
+    let out = "", run = "";
+    const flush = () => { if (run) { out += `<mark class="${cls}">${run}</mark>`; run = ""; } };
+    for (let k = 0; k < toks.length; k++) {
+      if (common[k]) { flush(); out += escapeHtml(toks[k]); }
+      else run += escapeHtml(toks[k]);
+    }
+    flush();
+    return out;
+  };
+  return { oldHtml: build(a, aCommon, "seg-del"), newHtml: build(b, bCommon, "seg-add") };
+}
 
 function renderUnified(srcText, tgtText) {
   const hunks = lineDiff(splitLines(srcText), splitLines(tgtText));
   let sn = 0, tn = 0, html = '<div class="raw-unified">';
-  for (const h of hunks) {
-    for (const line of h.lines) {
-      const esc = escapeHtml(line);
+  for (let hi = 0; hi < hunks.length; hi++) {
+    const h = hunks[hi], next = hunks[hi + 1], prev = hunks[hi - 1];
+    // P1-5: pair an adjacent removed→added run for intra-line highlighting
+    const pairNext = (h.op === "removed" && next && next.op === "added") ? Math.min(h.lines.length, next.lines.length) : 0;
+    const pairPrev = (h.op === "added"   && prev && prev.op === "removed") ? Math.min(prev.lines.length, h.lines.length) : 0;
+    for (let li = 0; li < h.lines.length; li++) {
+      const line = h.lines[li];
+      let code;
+      if (h.op === "removed" && li < pairNext)   code = wordDiffMarks(line, next.lines[li]).oldHtml;
+      else if (h.op === "added" && li < pairPrev) code = wordDiffMarks(prev.lines[li], line).newHtml;
+      else code = escapeHtml(line);
       const cls = h.op === "added" ? "r-added" : h.op === "removed" ? "r-removed" : "r-equal";
       const sym = h.op === "added" ? "+" : h.op === "removed" ? "−" : " ";
       const ln  = h.op === "added" ? ++tn : h.op === "removed" ? ++sn : (++sn, ++tn, sn);
-      html += `<div class="raw-line ${cls}"><span class="raw-gutter">${sym}${ln}</span><span class="raw-code">${esc}</span></div>`;
+      html += `<div class="raw-line ${cls}"><span class="raw-gutter">${sym}${ln}</span><span class="raw-code">${code}</span></div>`;
     }
   }
   html += "</div>";
@@ -2026,23 +2090,57 @@ function renderUnified(srcText, tgtText) {
 function renderSplit(srcText, tgtText) {
   const hunks = lineDiff(splitLines(srcText), splitLines(tgtText));
   let sLines = [], tLines = [];
-  for (const h of hunks) {
+  for (let hi = 0; hi < hunks.length; hi++) {
+    const h = hunks[hi];
     if (h.op === "equal") {
       h.lines.forEach(l => { sLines.push({ cls: "r-equal", line: l }); tLines.push({ cls: "r-equal", line: l }); });
     } else if (h.op === "removed") {
-      h.lines.forEach(l => { sLines.push({ cls: "r-removed", line: l }); tLines.push({ cls: "r-empty", line: "" }); });
+      // P1-5: pair with a following added hunk to mark only the changed words
+      const next = hunks[hi + 1];
+      const pair = (next && next.op === "added") ? Math.min(h.lines.length, next.lines.length) : 0;
+      h.lines.forEach((l, i) => {
+        const html = i < pair ? wordDiffMarks(l, next.lines[i]).oldHtml : null;
+        sLines.push({ cls: "r-removed", line: l, html });
+        tLines.push({ cls: "r-empty", line: "" });
+      });
     } else {
-      h.lines.forEach(l => { sLines.push({ cls: "r-empty", line: "" }); tLines.push({ cls: "r-added", line: l }); });
+      const prev = hunks[hi - 1];
+      const pair = (prev && prev.op === "removed") ? Math.min(prev.lines.length, h.lines.length) : 0;
+      h.lines.forEach((l, i) => {
+        const html = i < pair ? wordDiffMarks(prev.lines[i], l).newHtml : null;
+        sLines.push({ cls: "r-empty", line: "" });
+        tLines.push({ cls: "r-added", line: l, html });
+      });
     }
   }
   const colHtml = (rows) => rows.map((r, i) => {
     if (r.cls === "r-empty") return `<div class="raw-line r-equal"><span class="raw-gutter"></span><span class="raw-code" style="background:var(--surface-3)"></span></div>`;
-    return `<div class="raw-line ${r.cls}"><span class="raw-gutter">${i+1}</span><span class="raw-code">${escapeHtml(r.line)}</span></div>`;
+    const code = r.html != null ? r.html : escapeHtml(r.line);
+    return `<div class="raw-line ${r.cls}"><span class="raw-gutter">${i+1}</span><span class="raw-code">${code}</span></div>`;
   }).join("");
   return `<div class="raw-split">
     <div class="raw-split-pane"><div class="raw-split-head">Source</div><div class="raw-unified">${colHtml(sLines)}</div></div>
     <div class="raw-split-pane"><div class="raw-split-head">Target</div><div class="raw-unified">${colHtml(tLines)}</div></div>
   </div>`;
+}
+
+// P1-4: keep the two Raw split panes aligned by mirroring scroll position
+// (re-entrancy guard prevents the echo loop). Re-wired after each raw render.
+function wireRawScrollSync() {
+  if (rawMode !== "split") return;
+  const ps = document.querySelectorAll("#results .raw-split-pane");
+  if (ps.length !== 2) return;
+  const a = ps[0], b = ps[1];
+  let lock = false;
+  const mk = (from, to) => () => {
+    if (lock) return;
+    lock = true;
+    to.scrollTop = from.scrollTop;
+    to.scrollLeft = from.scrollLeft;
+    requestAnimationFrame(() => { lock = false; });
+  };
+  a.addEventListener("scroll", mk(a, b), { passive: true });
+  b.addEventListener("scroll", mk(b, a), { passive: true });
 }
 
 function renderRaw() {
@@ -2325,7 +2423,7 @@ function renderView() {
 
   if (viewMode === "raw") {
     // Raw text diff view — ignores filter (operates on full JSON text)
-    try { resEl.innerHTML = `<div class="raw-view">${renderRaw()}</div>`; } catch (e) { resEl.innerHTML = ""; }
+    try { resEl.innerHTML = `<div class="raw-view">${renderRaw()}</div>`; wireRawScrollSync(); } catch (e) { resEl.innerHTML = ""; }
   } else if (filterActive && filteredEntries.length === 0 && flatEntries.length > 0) {
     resEl.innerHTML = `<div class="state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><h3>No matches</h3><p>No changes match the current filter. Try adjusting or clearing it.</p></div>`;
   } else if (viewMode === "tree") {
@@ -2936,6 +3034,62 @@ document.getElementById("rawUnified").addEventListener("click", () => {
   document.getElementById("rawSplit").classList.remove("active");
   if (lastCompared && viewMode === "raw") renderView();
 });
+
+// P1-3: resizable Source/Target split. Sets the grid's --split-a/--split-b
+// custom properties (fr units); persisted as splitRatio in prefs. Two-way only.
+function applySplitRatio(r) {
+  const panes = document.querySelector(".panes");
+  if (!panes) return;
+  r = Math.max(0.2, Math.min(0.8, r));
+  panes.style.setProperty("--split-a", r.toFixed(4) + "fr");
+  panes.style.setProperty("--split-b", (1 - r).toFixed(4) + "fr");
+  const rez = document.getElementById("paneResizer");
+  if (rez) rez.setAttribute("aria-valuenow", String(Math.round(r * 100)));
+  splitRatio = r;
+}
+function initPaneResizer() {
+  const panes = document.querySelector(".panes");
+  const rez = document.getElementById("paneResizer");
+  if (!panes || !rez) return;
+  const GAP = 18;
+  let dragging = false;
+  const ratioFromX = (clientX) => {
+    const rect = panes.getBoundingClientRect();
+    const avail = rect.width - GAP;
+    return avail <= 0 ? 0.5 : (clientX - rect.left - GAP / 2) / avail;
+  };
+  const onMove = (e) => { if (dragging) applySplitRatio(ratioFromX(e.clientX)); };
+  const onUp = () => {
+    if (!dragging) return;
+    dragging = false;
+    rez.classList.remove("dragging");
+    document.body.classList.remove("col-resizing");
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    savePrefs();
+  };
+  rez.addEventListener("pointerdown", (e) => {
+    if (e.button && e.button !== 0) return;
+    dragging = true;
+    rez.classList.add("dragging");
+    document.body.classList.add("col-resizing");
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    e.preventDefault();
+  });
+  rez.addEventListener("dblclick", () => { applySplitRatio(0.5); savePrefs(); });
+  rez.addEventListener("keydown", (e) => {
+    let r = splitRatio == null ? 0.5 : splitRatio, ok = true;
+    if (e.key === "ArrowLeft")       r -= 0.05;
+    else if (e.key === "ArrowRight") r += 0.05;
+    else if (e.key === "Home")       r = 0.2;
+    else if (e.key === "End")        r = 0.8;
+    else if (e.key === "Enter" || e.key === " ") r = 0.5;
+    else ok = false;
+    if (ok) { e.preventDefault(); applySplitRatio(r); savePrefs(); }
+  });
+}
+initPaneResizer();
 
 document.getElementById("expandAll").addEventListener("click", () => {
   if (_virtRoot && _virtScrollEl) {
@@ -3632,7 +3786,8 @@ function savePrefs() {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
       theme, onlyDiff, unordered, viewMode,
       ignoreCase, ignoreKeys, numericTolerance, keyBy,  // T14
-      inputFormat  // T22
+      inputFormat,  // T22
+      splitRatio    // P1-3
     }));
   } catch (e) { /* ignore — file:// may block localStorage */ }
 }
@@ -3657,6 +3812,9 @@ function applyTheme(t) {
     if (typeof saved.keyBy === "string" && saved.keyBy)
       document.getElementById("arrayKeyField").value = saved.keyBy;
     if (saved.viewMode === "table" || saved.viewMode === "tree") setView(saved.viewMode);
+    // P1-3: restore the Source/Target split ratio
+    if (typeof saved.splitRatio === "number" && saved.splitRatio >= 0.2 && saved.splitRatio <= 0.8)
+      applySplitRatio(saved.splitRatio);
     // T22: restore input format
     if (["json","jsonc","json5","ndjson"].includes(saved.inputFormat)) {
       const fmtEl = document.getElementById("fmt" + saved.inputFormat.toUpperCase().replace("JSON","JSON").replace("NDJSON","NDJSON"));
