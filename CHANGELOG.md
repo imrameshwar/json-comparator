@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.2] — 2026-06-10
+
+Enhancement plan **Phase B** — onboarding, per-view control gating, and a narrow/mobile pass (P1-1, P1-2, P1-7). No architectural change; DIFF-CORE byte-identical, CSP intact (`connect-src 'none'`), all element IDs preserved.
+
+### Added
+
+- **Load sample (P1-1)** — a built-in source/target pair exercising added, removed, changed (string/number/boolean), nested-object, array, and unchanged cases. Available two ways: a **Load sample** button in the empty-state placeholder (next to a **Paste your own JSON** shortcut) and a **Load sample** button in the compare toolbar (`#sampleBtn`). Restores the onboarding affordance the README already referenced. New IDs: `sampleBtn`, `phSample`, `phCompare`.
+
+### Changed
+
+- **Controls are gated per view (P1-2)** — the change-type **legend** and the **selection bar** (Select all / Generate table / JSON Patch) now appear only in Tree and Table views, where they function. In Raw view only the Split/Unified toggle shows; in 3-Way view only the merge stats show (the whole sub-bar is hidden). Wiring-only change in `renderView()`; no renderer logic touched.
+- **Narrow / mobile pass (P1-7)** — below 560 px the per-pane tool row stays on a single horizontally-scrollable line (Copy/Clear remain reachable without stacking), the secondary toolbar buttons collapse to icon-only (Compare and Load sample keep their labels), and the filter search inputs take a full-width row so nothing overflows at ~390 px. Toolbar button labels are now wrapped in `.btn-label` spans to support the icon-only collapse. Sticky headers were already disabled ≤820 px (Phase A).
+
+### Notes
+
+- `index.html` (the GitHub Pages build) is regenerated from `json_compare.html` by re-applying the feedback widget + relaxed-CSP delta; the two files differ only by that delta.
+
+---
+
 ## [2.1] — 2026-06-10
 
 Enhancement plan **Phase A** — verified visual defects (P0) plus a nav-counter polish (P1-6). No architectural change; DIFF-CORE untouched, CSP intact, all element IDs preserved.

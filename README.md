@@ -23,6 +23,8 @@ A self-contained toolkit for comparing two JSON documents and seeing exactly wha
 
 Double-click `json_compare.html` to open it in your default browser. Paste JSON into the **Source** and **Target** panes and press **Compare** (or `Ctrl/Cmd + Enter`).
 
+New here? Press **Load sample** — in the empty state or the toolbar — to drop in a built-in example (added / removed / changed / nested / array cases) and see a comparison instantly.
+
 If a pane isn't valid JSON, the error banner names the **line and column** of the problem and offers a **Jump to error** button that takes you straight to it (and, when it can, offers to auto-repair the document instead).
 
 ### Features
