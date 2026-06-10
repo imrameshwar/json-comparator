@@ -2261,6 +2261,30 @@ function navStep(delta) {
 
 // T11: re-render the results area using the current filter state + lastRows.
 // Called on Compare (via render()), view switch, onlyDiff change, and filter input.
+// Render the standard added/removed/changed/unchanged summary into #stats from a
+// Change[] (full rows, incl. "equal"). Returns the difference total. Shared by
+// _applyDiffResult (fresh compare) and renderView (view switches).
+function renderSummaryStats(rows) {
+  const counts = { added: 0, removed: 0, changed: 0, equal: 0 };
+  rows.forEach(r => {
+    if (r.op === "added") counts.added++;
+    else if (r.op === "removed") counts.removed++;
+    else if (r.op === "changed" || r.op === "type_changed") counts.changed++;
+    else if (r.op === "equal") counts.equal++;
+  });
+  const total = counts.added + counts.removed + counts.changed;
+  const unchanged = counts.equal
+    ? `<span class="stat unchanged" title="Fields that are identical in both documents"><span class="n">${counts.equal}</span> unchanged</span>`
+    : "";
+  document.getElementById("stats").innerHTML = total === 0
+    ? `<span class="stat equal">✓ Identical — no differences</span>${unchanged}`
+    : `<span class="diff-total">${total} difference${total !== 1 ? "s" : ""}</span>` +
+      `<span class="stat added"><span class="n">${counts.added}</span> added</span>` +
+      `<span class="stat removed"><span class="n">${counts.removed}</span> removed</span>` +
+      `<span class="stat changed"><span class="n">${counts.changed}</span> changed</span>${unchanged}`;
+  return total;
+}
+
 function renderView() {
   if (!lastRows) return;
   const { onlyDiff } = getOpts();
@@ -2295,6 +2319,12 @@ function renderView() {
   document.getElementById("subbar").classList.toggle("hidden", viewMode === "3way");
   const _legendEl = document.querySelector("#subbar .legend");
   if (_legendEl) _legendEl.classList.toggle("hidden", !showAux);
+
+  // Restore the normal diff summary for every non-3-Way view. 3-Way writes its
+  // own conflict/left-only/right-only badges below; without this, switching from
+  // 3-Way back to Tree/Table/Raw would leave those badges stuck in the header
+  // until the next compare.
+  if (viewMode !== "3way" && lastRows) renderSummaryStats(lastRows);
 
   // T20: tear down any active virtual scroll before switching views
   _removeVirtScroll();
@@ -2389,23 +2419,7 @@ function _applyDiffResult(rows, precLost) {
   lastRows = rows;
   flatEntries = rows.filter(r => r.op !== "equal");
   flatEntries.forEach(e => { e.id = segId(e.segs); });
-  const counts = { added: 0, removed: 0, changed: 0, equal: 0 };
-  rows.forEach(r => {
-    if (r.op === "added") counts.added++;
-    else if (r.op === "removed") counts.removed++;
-    else if (r.op === "changed" || r.op === "type_changed") counts.changed++;
-    else if (r.op === "equal") counts.equal++;
-  });
-  const total = counts.added + counts.removed + counts.changed;
-  const unchanged = counts.equal
-    ? `<span class="stat unchanged" title="Fields that are identical in both documents"><span class="n">${counts.equal}</span> unchanged</span>`
-    : "";
-  document.getElementById("stats").innerHTML = total === 0
-    ? `<span class="stat equal">✓ Identical — no differences</span>${unchanged}`
-    : `<span class="diff-total">${total} difference${total !== 1 ? "s" : ""}</span>` +
-      `<span class="stat added"><span class="n">${counts.added}</span> added</span>` +
-      `<span class="stat removed"><span class="n">${counts.removed}</span> removed</span>` +
-      `<span class="stat changed"><span class="n">${counts.changed}</span> changed</span>${unchanged}`;
+  const total = renderSummaryStats(rows);
   renderView();
   collapseInputs(total);   // results take focus; editors fold into a slim summary bar
 }

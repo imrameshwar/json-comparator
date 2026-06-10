@@ -18,6 +18,10 @@ Enhancement plan **Phase B** — onboarding, per-view control gating, and a narr
 - **Controls are gated per view (P1-2)** — the change-type **legend** and the **selection bar** (Select all / Generate table / JSON Patch) now appear only in Tree and Table views, where they function. In Raw view only the Split/Unified toggle shows; in 3-Way view only the merge stats show (the whole sub-bar is hidden). Wiring-only change in `renderView()`; no renderer logic touched.
 - **Narrow / mobile pass (P1-7)** — below 560 px the per-pane tool row stays on a single horizontally-scrollable line (Copy/Clear remain reachable without stacking), the secondary toolbar buttons collapse to icon-only (Compare and Load sample keep their labels), and the filter search inputs take a full-width row so nothing overflows at ~390 px. Toolbar button labels are now wrapped in `.btn-label` spans to support the icon-only collapse. Sticky headers were already disabled ≤820 px (Phase A).
 
+### Fixed
+
+- **Stale summary stats after leaving 3-Way** — switching from the 3-Way view back to Tree/Table/Raw left the 3-Way conflict/left-only/right-only badges stuck in the results header until the next compare, because `renderView()` only wrote `#stats` in the 3-Way branch. The summary rendering is now factored into a shared `renderSummaryStats()` helper that `renderView()` re-runs for every non-3-Way view, so the normal added/removed/changed/unchanged counts are restored on every view switch. (Pre-existing bug, surfaced during Phase B sanity testing.)
+
 ### Notes
 
 - `index.html` (the GitHub Pages build) is regenerated from `json_compare.html` by re-applying the feedback widget + relaxed-CSP delta; the two files differ only by that delta.
