@@ -13,6 +13,10 @@ Post-validation fixes: declined-repair silent failure, index-parity test, mobile
 
 - **Declined auto-repair no longer silently drops the error banner** — when invalid JSON triggers the auto-repair dialog and the user clicks Cancel, the standard parse-error banner (with line/column and "Jump to error" button) is now shown instead of nothing. Covered all five callsites: worker parse errors for Source and Target, sync-fallback parse errors for Source and Target, and the Format/Minify button path (which applies to all three panes including Base).
 
+### Added
+
+- **`tests/index-parity.test.js`** — automated parity guard: asserts that `index.html` is byte-identical to `json_compare.html` outside the FEEDBACK:START/END-marked blocks and the one permitted CSP `connect-src` line difference. Both `/* FEEDBACK:START */` (CSS/JS) and `<!-- FEEDBACK:START -->` (HTML) markers are now present in `index.html`, fencing the feedback widget delta. The test fails if the files drift anywhere outside those markers.
+
 ---
 
 ## [2.3] — 2026-06-10
