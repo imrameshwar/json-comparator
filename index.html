@@ -124,7 +124,7 @@
   .pane.target .dot { background: var(--added); }
   .pane-head .name { font-weight: 650; font-size: 13px; }
   .pane-head .side-tag { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
-  .pane-tools { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+  .pane-tools { margin-left: auto; display: flex; align-items: center; gap: 2px; flex-wrap: wrap; row-gap: 4px; justify-content: flex-end; }
   .pane-head .count { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; margin-right: 4px; white-space: nowrap; }
   .pane-head .mini { border: none; background: transparent; color: var(--text-2); cursor: pointer; font-size: 12px; padding: 4px 8px; border-radius: 6px; transition: var(--transition); display: inline-flex; align-items: center; gap: 5px; }
   .pane-head .mini svg { width: 13px; height: 13px; }
@@ -135,7 +135,7 @@
 
   /* sticky compare toolbar — stays reachable while scrolling results */
   .toolbar {
-    position: sticky; top: 62px; z-index: 18;
+    position: sticky; top: var(--appbar-h, 62px); z-index: 18;
     background: color-mix(in srgb, var(--bg) 90%, transparent);
     backdrop-filter: saturate(160%) blur(10px);
     border: 1px solid var(--border); border-radius: var(--radius);
@@ -159,7 +159,7 @@
   .results-wrap { margin-top: 24px; }
   .results-head {
     display: flex; align-items: center; gap: 14px; margin-bottom: 12px; flex-wrap: wrap;
-    position: sticky; top: 132px; z-index: 16;
+    position: sticky; top: calc(var(--appbar-h, 62px) + var(--toolbar-h, 70px) + 6px); z-index: 16;
     background: color-mix(in srgb, var(--bg) 92%, transparent);
     backdrop-filter: saturate(160%) blur(8px);
     padding: 8px 0;
@@ -353,6 +353,16 @@
   .banner.warn { background: var(--changed-bg); border-color: var(--changed-line); color: var(--changed); }
   .banner svg { width: 18px; height: 18px; flex: none; margin-top: 1px; }
   .banner pre { margin: 2px 0 0; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; }
+  /* P0-4: "Jump to error" button inside a parse-error banner */
+  .banner .banner-jump { margin-top: 9px; }
+  /* P0-3: dim a stale comparison shown beneath an error / after an input edit.
+     Only the head + results are dimmed; the stale note itself stays legible. */
+  .results-wrap.stale .results-head,
+  .results-wrap.stale #results { opacity: .4; filter: saturate(.55); pointer-events: none; }
+  .stale-note { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600;
+    color: var(--changed); background: var(--changed-bg); border: 1px solid var(--changed-line);
+    border-radius: var(--radius-sm); padding: 8px 12px; margin: 0 0 12px; }
+  .stale-note svg { width: 16px; height: 16px; flex: none; }
   .hidden { display: none !important; }
 
   /* ---- T21: input-size guard ---- */
@@ -713,6 +723,10 @@
     <div id="banner" class="banner hidden"></div>
 
     <div id="resultsWrap" class="results-wrap hidden">
+      <div id="staleNote" class="stale-note hidden" role="status">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+        Showing a previous result — compare again to refresh.
+      </div>
       <div class="results-head">
         <div class="stats" id="stats"></div>
         <div class="rhead-controls">
@@ -2304,14 +2318,24 @@ function renderView() {
   [...selected].forEach(id => { if (!valid.has(id)) selected.delete(id); });
   document.getElementById("selbar").style.display = flatEntries.length ? "flex" : "none";
   syncSelectionUI();
-  // T12: reset nav position after any re-render; update counter display
-  navIdx = -1;
+  // P1-6: start the diff-nav counter on the first diff (highlighted in place,
+  // no scroll) so it reads "1 / N" immediately instead of "— / N". Next/Prev
+  // then advance from there. Falls back to "— / —" when there are no diffs.
+  const navTargets = getNavTargets();
+  if (navTargets.length) {
+    navIdx = 0;
+    document.querySelectorAll("#results .diff-focused").forEach(e => e.classList.remove("diff-focused"));
+    navTargets[0].classList.add("diff-focused");
+  } else {
+    navIdx = -1;
+  }
   updateNavUI();
 }
 
 // T19: shared result handler (called by worker path and sync fallback)
 function _applyDiffResult(rows, precLost) {
   document.getElementById("banner").classList.add("hidden");
+  clearResultsStale();   // P0-3: this render is fresh — un-dim
   if (precLost && precLost.length) {
     const nums = precLost.slice(0, 3).join(", ") + (precLost.length > 3 ? "…" : "");
     showWarning("Precision warning", "One or more integers exceed JavaScript’s safe integer limit (2⁵³−1 = 9,007,199,254,740,991) and were silently rounded by JSON.parse. Affected value(s): " + nums + ". The diff may not reflect the true difference. Consider storing these as strings.");
@@ -2432,8 +2456,8 @@ function render() {
 
       if (msg.type === "error") {
         if (msg.name === "CancelError") return;
-        if (msg.parseTarget === "source") { if (!offerRepair("source", "Source", true)) showError("Source JSON is invalid", msg.message); return; }
-        if (msg.parseTarget === "target") { if (!offerRepair("target", "Target", true)) showError("Target JSON is invalid", msg.message); return; }
+        if (msg.parseTarget === "source") { if (!offerRepair("source", "Source", true)) showParseError("source", "Source", msg.message); return; }
+        if (msg.parseTarget === "target") { if (!offerRepair("target", "Target", true)) showParseError("target", "Target", msg.message); return; }
         if (msg.name === "DiffDepthError") return showError("Input too deeply nested", msg.message);
         return showError("Compare failed", msg.message);
       }
@@ -2468,9 +2492,9 @@ function render() {
     const parser = _getParser() || ((t) => JSON.parse(t));
     let src, tgt;
     try { src = parser(srcFull); }
-    catch (e) { return showError("Source JSON is invalid", e.message); }
+    catch (e) { return showParseError("source", "Source", e.message); }
     try { tgt = parser(tgtFull); }
-    catch (e) { return showError("Target JSON is invalid", e.message); }
+    catch (e) { return showParseError("target", "Target", e.message); }
     const precLost = [...new Set([...detectPrecisionLoss(srcFull), ...detectPrecisionLoss(tgtFull)])];
     let rows;
     try {
@@ -2601,6 +2625,83 @@ function showError(title, detail) {
   b.className = "banner";
   b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><div><strong>${escapeHtml(title)}</strong><pre>${escapeHtml(detail)}</pre></div>`;
   b.classList.remove("hidden");
+  markResultsStale();   // P0-3: dim any previous result shown beneath the error
+}
+
+/* ---- P0-3: stale-result indicator ----------------------------------------
+ * When a compare fails (or the inputs are edited after a compare) the prior
+ * result is still on screen. Dim it and show a note so it isn't misread as
+ * current. Cleared on the next successful render. */
+function markResultsStale() {
+  const w = document.getElementById("resultsWrap");
+  if (!lastRows || !w || w.classList.contains("hidden")) return;
+  w.classList.add("stale");
+  document.getElementById("staleNote").classList.remove("hidden");
+}
+function clearResultsStale() {
+  const w = document.getElementById("resultsWrap");
+  if (!w) return;
+  w.classList.remove("stale");
+  document.getElementById("staleNote").classList.add("hidden");
+}
+
+/* ---- P0-4: parse-error location + jump-to-error --------------------------- */
+// Turn a char offset into 1-based {line, col} within `text`.
+function offsetToLineCol(text, pos) {
+  let line = 1, col = 1;
+  const end = Math.min(pos, text.length);
+  for (let i = 0; i < end; i++) {
+    if (text[i] === "\n") { line++; col = 1; } else col++;
+  }
+  return { line, col };
+}
+// Turn 1-based line/column into a char offset within `text`.
+function lineColToOffset(text, line, col) {
+  let l = 1, i = 0;
+  while (l < line && i < text.length) { if (text[i] === "\n") l++; i++; }
+  return Math.min(i + Math.max(0, col - 1), text.length);
+}
+// Extract a location from a JS-engine / lenient-parser error message.
+// Handles "...position N..." (V8, JSON5) and "...line L column C..." (Firefox).
+function _parseErrorPos(message, text) {
+  if (!message) return null;
+  let m = /position\s+(\d+)/i.exec(message);
+  if (m) { const pos = Math.min(+m[1], text.length); return { pos, ...offsetToLineCol(text, pos) }; }
+  m = /line\s+(\d+)\s+column\s+(\d+)/i.exec(message);
+  if (m) { const line = +m[1], col = +m[2]; return { line, col, pos: lineColToOffset(text, line, col) }; }
+  return null;
+}
+// Focus the offending pane, select the error position, scroll it into view.
+function jumpToError(target, pos, line) {
+  const panes = document.querySelector(".panes");
+  if (panes && panes.classList.contains("hidden")) expandInputs();
+  const ta = document.getElementById(target);
+  if (!ta) return;
+  ta.focus();
+  const p = Math.max(0, Math.min(pos | 0, ta.value.length));
+  try { ta.setSelectionRange(p, Math.min(p + 1, ta.value.length)); } catch (e) { /* noop */ }
+  // Textareas have no caret-scroll API; approximate by line height.
+  const lh = parseFloat(getComputedStyle(ta).lineHeight) || 20;
+  const ln = line || offsetToLineCol(ta.value, p).line;
+  ta.scrollTop = Math.max(0, (ln - 1) * lh - ta.clientHeight / 2);
+  refreshHighlight(target);
+}
+// Error banner for an invalid-JSON compare: adds location + a Jump button.
+function showParseError(target, label, message) {
+  const text = document.getElementById(target).value;
+  const loc = _parseErrorPos(message, text);
+  const where = loc && loc.line ? ` (line ${loc.line}, column ${loc.col})` : "";
+  const b = document.getElementById("banner");
+  b.className = "banner";
+  b.innerHTML =
+    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>` +
+    `<div><strong>${escapeHtml(label)} JSON is invalid${escapeHtml(where)}</strong>` +
+    `<pre>${escapeHtml(message)}</pre>` +
+    (loc ? `<button class="btn ghost sm banner-jump" type="button">Jump to error</button>` : "") +
+    `</div>`;
+  b.classList.remove("hidden");
+  if (loc) b.querySelector(".banner-jump").addEventListener("click", () => jumpToError(target, loc.pos, loc.line));
+  markResultsStale();
 }
 function showWarning(title, detail) {
   const b = document.getElementById("banner");
@@ -2892,8 +2993,8 @@ document.getElementById("swapBtn").addEventListener("click", () => {
   if (lastCompared) render();
 });
 document.getElementById("editInputsBtn").addEventListener("click", expandInputs);
-document.getElementById("source").addEventListener("input", () => { updateCounts(); scheduleHighlight("source"); });
-document.getElementById("target").addEventListener("input", () => { updateCounts(); scheduleHighlight("target"); });
+document.getElementById("source").addEventListener("input", () => { updateCounts(); scheduleHighlight("source"); if (lastCompared) markResultsStale(); });
+document.getElementById("target").addEventListener("input", () => { updateCounts(); scheduleHighlight("target"); if (lastCompared) markResultsStale(); });
 
 // Editors are height-bounded (--editor-max); large documents scroll INSIDE the
 // editor. Keep the syntax-highlight overlay aligned by mirroring the textarea's
@@ -2939,6 +3040,7 @@ function resetSession() {
   _treeExpandedIds = new Set();
   navIdx = -1;
   // back to the placeholder / fresh layout
+  clearResultsStale();
   document.getElementById("resultsWrap").classList.add("hidden");
   document.getElementById("placeholder").classList.remove("hidden");
   expandInputs();   // un-collapse editors + focus Source
@@ -3654,6 +3756,27 @@ document.addEventListener("keydown", e => {
     }
   }
 });
+
+// P0-2: keep the sticky-header offsets in sync with the *actual* rendered
+// heights of the appbar and compare toolbar. The toolbar wraps to a second row
+// below ~1250px; hardcoded tops (62 / 132px) then let the results-head slide
+// under it. Measuring at runtime (via --appbar-h / --toolbar-h, consumed by the
+// CSS `top: calc(...)`) keeps them stacked at any width.
+function syncStickyOffsets() {
+  const root = document.documentElement;
+  const appbar = document.querySelector(".appbar");
+  const toolbar = document.querySelector(".toolbar");
+  if (appbar) root.style.setProperty("--appbar-h", appbar.offsetHeight + "px");
+  if (toolbar) root.style.setProperty("--toolbar-h", toolbar.offsetHeight + "px");
+}
+if (typeof ResizeObserver !== "undefined") {
+  const _stickyRO = new ResizeObserver(syncStickyOffsets);
+  const _ab = document.querySelector(".appbar"), _tb = document.querySelector(".toolbar");
+  if (_ab) _stickyRO.observe(_ab);
+  if (_tb) _stickyRO.observe(_tb);
+}
+window.addEventListener("resize", syncStickyOffsets, { passive: true });
+syncStickyOffsets();
 
 updateCounts();
 updateLibCount();

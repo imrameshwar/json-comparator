@@ -21,7 +21,9 @@ A self-contained toolkit for comparing two JSON documents and seeing exactly wha
 
 ### Getting started
 
-Double-click `json_compare.html` to open it in your default browser. Paste JSON into the **Source** and **Target** panes and press **Compare** (or `Ctrl/Cmd + Enter`). Press **Load sample** to see it in action immediately.
+Double-click `json_compare.html` to open it in your default browser. Paste JSON into the **Source** and **Target** panes and press **Compare** (or `Ctrl/Cmd + Enter`).
+
+If a pane isn't valid JSON, the error banner names the **line and column** of the problem and offers a **Jump to error** button that takes you straight to it (and, when it can, offers to auto-repair the document instead).
 
 ### Features
 
@@ -56,6 +58,8 @@ Double-click `json_compare.html` to open it in your default browser. Paste JSON 
 **Big-number precision warning** — JavaScript's `JSON.parse` silently rounds integers larger than `2^53−1` (9,007,199,254,740,991). If the web app detects any such integer in either pane it shows an amber warning banner. The CLI also reports these correctly (Python preserves full integer precision). If you need to compare large integers reliably, store them as strings in your JSON.
 
 **Deeply nested input** — inputs nested more than 500 levels deep trigger a friendly "Input too deeply nested" error rather than a stack overflow.
+
+**Stale results are dimmed** — if a compare fails, or you edit an input after comparing, the previous results stay on screen but are greyed out with a "Showing a previous result" note, so they're never mistaken for the current comparison. They refresh the moment you compare again.
 
 ### A note on storage
 
