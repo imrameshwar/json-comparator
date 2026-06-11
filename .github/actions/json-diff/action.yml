@@ -1,0 +1,83 @@
+name: 'JSON Diff'
+description: >
+  Diff two JSON files using the json-comparator engine and optionally post
+  the result as a Markdown comment on the current pull request.
+
+  Zero runtime dependencies — uses the same diff engine as the web app.
+
+branding:
+  icon: 'git-merge'
+  color: 'blue'
+
+inputs:
+  source-file:
+    description: 'Path to the source (base) JSON file'
+    required: true
+  target-file:
+    description: 'Path to the target (head) JSON file'
+    required: true
+  fail-on-diff:
+    description: 'Exit with code 1 if any differences are found'
+    required: false
+    default: 'false'
+  comment-on-pr:
+    description: >
+      Post the diff as a Markdown comment on the pull request.
+      Silently skipped when the workflow is not triggered by a pull_request event.
+    required: false
+    default: 'true'
+  github-token:
+    description: >
+      GitHub token used to post PR comments (needs issues: write / pull-requests: write).
+      Defaults to the built-in GITHUB_TOKEN.
+    required: false
+    default: ${{ github.token }}
+  title:
+    description: 'Heading for the Markdown diff report'
+    required: false
+    default: 'JSON Diff Report'
+  source-label:
+    description: 'Column header for the "before" value in the report table'
+    required: false
+    default: 'Source'
+  target-label:
+    description: 'Column header for the "after" value in the report table'
+    required: false
+    default: 'Target'
+  unordered:
+    description: 'Treat scalar arrays as unordered multisets (pass --unordered to the diff engine)'
+    required: false
+    default: 'false'
+  array-key:
+    description: 'Match array objects by this key field instead of by position (e.g. "id")'
+    required: false
+    default: ''
+
+outputs:
+  diff-found:
+    description: '"true" if differences were found, "false" if the documents are equal'
+    value: ${{ steps.run.outputs.diff-found }}
+  diff-count:
+    description: 'Number of differences found (0 when equal)'
+    value: ${{ steps.run.outputs.diff-count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run JSON diff
+      id: run
+      shell: bash
+      run: node "${{ github.action_path }}/index.js"
+      env:
+        # Pass inputs as env vars so the Node.js script can read them portably.
+        ACTION_PATH: ${{ github.action_path }}
+        INPUT_SOURCE_FILE: ${{ inputs.source-file }}
+        INPUT_TARGET_FILE: ${{ inputs.target-file }}
+        INPUT_FAIL_ON_DIFF: ${{ inputs.fail-on-diff }}
+        INPUT_COMMENT_ON_PR: ${{ inputs.comment-on-pr }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_TITLE: ${{ inputs.title }}
+        INPUT_SOURCE_LABEL: ${{ inputs.source-label }}
+        INPUT_TARGET_LABEL: ${{ inputs.target-label }}
+        INPUT_UNORDERED: ${{ inputs.unordered }}
+        INPUT_ARRAY_KEY: ${{ inputs.array-key }}

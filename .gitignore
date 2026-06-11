@@ -9,3 +9,4 @@ __pycache__/
 .v2/
 .verify/
 *.BACKUP.html
+extracted_script.js

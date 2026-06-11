@@ -7,7 +7,10 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["node_modules/**", "coverage/**", "dist/**", ".v2/**", ".verify/**"],
+    // _chk*.js / extracted_script.js are generated script-extraction artifacts
+    // used for manual verification; they must not be linted.
+    ignores: ["node_modules/**", "coverage/**", "dist/**", ".v2/**", ".verify/**",
+              "_chk*.js", "extracted_script.js"],
   },
   js.configs.recommended,
   {

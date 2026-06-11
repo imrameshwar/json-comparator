@@ -1,0 +1,59 @@
+# Example: run the JSON Diff action on pull requests.
+#
+# Copy this workflow into your own repository and adjust the paths.
+# The action diffs two JSON files and (optionally) posts the result as a
+# pull-request comment; it can also fail the build when drift is detected.
+#
+# NOTE: This file is a reference example only.  It is NOT run by the
+# json-comparator CI itself (the repo's own CI is in ci.yml).
+
+name: JSON diff example
+
+on:
+  pull_request:
+    paths:
+      # Only run when JSON files change — remove this filter to always run.
+      - '**.json'
+
+jobs:
+  json-diff:
+    name: Diff config files
+    runs-on: ubuntu-latest
+    permissions:
+      # Required so the action can post a PR comment.
+      pull-requests: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Fetch both the PR head and the base so we can compare them.
+          fetch-depth: 0
+
+      # ── Example 1: diff two files that always exist in the repo ──────────
+      - name: Diff source vs target
+        uses: ./.github/actions/json-diff
+        with:
+          source-file: source.json
+          target-file: target.json
+          fail-on-diff: 'false'   # set to 'true' to break the build on any drift
+          comment-on-pr: 'true'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          title: 'Config diff: source vs target'
+
+      # ── Example 2: compare a file on the PR branch vs the base branch ────
+      # Checkout the base-branch version of the file first, then diff.
+      - name: Get base-branch version of config.json
+        run: git show origin/${{ github.base_ref }}:config.json > /tmp/config-base.json || echo '{}' > /tmp/config-base.json
+
+      - name: Diff config.json (base → head)
+        uses: ./.github/actions/json-diff
+        with:
+          source-file: /tmp/config-base.json
+          target-file: config.json
+          fail-on-diff: 'true'   # fail the build if config.json changed unexpectedly
+          comment-on-pr: 'true'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          title: 'Config drift check: config.json'
+          source-label: 'Base branch'
+          target-label: 'This PR'

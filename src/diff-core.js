@@ -275,13 +275,146 @@ function _walk(src, tgt, path, segs, unordered, keyBy, out, depth, opts) {
   return out;
 }
 
-// Public entry point. Change = { op, path, segs, from?, to?, fromType?, toType? }.
+// F-4: ignore-paths — tokenize a display-format path string into an array of tokens.
+// "$.a[0].b"        → ["$", "a", "0", "b"]
+// "$.items[*].ts"   → ["$", "items", "*", "ts"]
+// "$.meta.*.key"    → ["$", "meta", "*", "key"]
+// Wildcard token "*" (from "[*]" or ".*") matches any single token during comparison.
+function _tokenizePath(p) {
+  const toks = [];
+  let i = 0;
+  while (i < p.length) {
+    if (p[i] === "$") { toks.push("$"); i++; }
+    else if (p[i] === ".") {
+      i++;
+      let j = i;
+      while (j < p.length && p[j] !== "." && p[j] !== "[") j++;
+      if (j > i) toks.push(p.slice(i, j));
+      i = j;
+    } else if (p[i] === "[") {
+      i++;
+      let j = i;
+      while (j < p.length && p[j] !== "]") j++;
+      toks.push(p.slice(i, j));
+      i = j + 1;
+    } else {
+      i++;
+    }
+  }
+  return toks;
+}
+
+// Returns true if `path` (display string) matches `pattern` token-for-token.
+// Lengths must be equal; "*" in the pattern matches any single token.
+function _pathMatchesPattern(path, pattern) {
+  const pt = _tokenizePath(path), pp = _tokenizePath(pattern);
+  if (pt.length !== pp.length) return false;
+  for (let i = 0; i < pp.length; i++) {
+    if (pp[i] !== "*" && pp[i] !== pt[i]) return false;
+  }
+  return true;
+}
+
+// G-3: schema-aware diff helpers.
+// These are pure (no DOM, no globals, no I/O) so they live inside DIFF-CORE.
+//
+// _collectVolatilePaths(schema, path, out)
+//   Walk a JSON Schema and push JSONPath-like patterns for every property node
+//   that carries "x-volatile": true into `out`. Recurses into `properties` and
+//   single-schema `items` (all array elements share one schema).
+//   E.g. { properties: { ts: { "x-volatile": true } } } → out = ["$.ts"]
+function _collectVolatilePaths(schema, path, out) {
+  if (!schema || typeof schema !== "object") return;
+  if (schema["x-volatile"] === true && path !== "$") out.push(path);
+  if (schema.properties && typeof schema.properties === "object") {
+    const keys = Object.keys(schema.properties);
+    for (let ki = 0; ki < keys.length; ki++) {
+      _collectVolatilePaths(schema.properties[keys[ki]], path + "." + keys[ki], out);
+    }
+  }
+  if (schema.items && typeof schema.items === "object" && !Array.isArray(schema.items)) {
+    _collectVolatilePaths(schema.items, path + "[*]", out);
+  }
+}
+
+// Navigate a JSON Schema tree to the sub-schema node at `tokens` (from
+// _tokenizePath). Returns null when the path cannot be resolved.
+// Supports: root "$", object properties, array items (single schema).
+function _schemaAtPath(schema, tokens) {
+  let cur = schema;
+  for (let i = 1; i < tokens.length; i++) {
+    if (!cur || typeof cur !== "object") return null;
+    const tok = tokens[i];
+    if (tok === "*" || /^\d+$/.test(tok)) {
+      cur = (cur.items && typeof cur.items === "object" && !Array.isArray(cur.items))
+            ? cur.items : null;
+    } else {
+      cur = (cur.properties && typeof cur.properties[tok] === "object")
+            ? cur.properties[tok] : null;
+    }
+  }
+  return cur;
+}
+
+// Check whether `value` satisfies the `type` declared in `schemaNode`.
+// Returns { expected, got } if there is a type violation, null otherwise.
+// Handles type arrays (["string","null"]) and the "integer" refinement.
+function _schemaTypeViolation(value, schemaNode) {
+  if (!schemaNode || !schemaNode.type) return null;
+  if (value === null || value === undefined) return null;
+  const got = typeName(value);
+  const declared = Array.isArray(schemaNode.type) ? schemaNode.type : [schemaNode.type];
+  const ok = declared.some(t =>
+    t === got ||
+    (t === "integer" && got === "number" && Number.isInteger(value)) ||
+    (t === "number"  && got === "number")
+  );
+  if (!ok) return { expected: declared.join("|"), got };
+  return null;
+}
+
+// Public entry point. Change = { op, path, segs, from?, to?, fromType?, toType?,
+//                                 schemaViolation?: { expected, got } }.
 // opts: { unordered?: boolean, keyBy?: string,
-//         ignoreKeys?: string[], numericTolerance?: number, ignoreCase?: boolean }
+//         ignoreKeys?: string[], numericTolerance?: number, ignoreCase?: boolean,
+//         ignorePaths?: string[], schema?: object }
 function diffCore(src, tgt, opts) {
   const unordered = !!(opts && opts.unordered);
   const keyBy = (opts && typeof opts.keyBy === "string") ? opts.keyBy : null;
-  return _walk(src, tgt, "$", [], unordered, keyBy, [], 0, opts || {});
+  const raw = _walk(src, tgt, "$", [], unordered, keyBy, [], 0, opts || {});
+
+  // Build combined ignorePaths: explicit patterns + schema volatile paths (G-3).
+  const explicitIgnore = (opts && Array.isArray(opts.ignorePaths) && opts.ignorePaths.length) ? opts.ignorePaths : [];
+  const schemaIgnore = [];
+  if (opts && opts.schema && typeof opts.schema === "object") {
+    _collectVolatilePaths(opts.schema, "$", schemaIgnore);
+  }
+  const ignorePaths = (explicitIgnore.length || schemaIgnore.length)
+    ? explicitIgnore.concat(schemaIgnore) : null;
+
+  let result = ignorePaths
+    ? raw.filter(c => !ignorePaths.some(pat => _pathMatchesPattern(c.path, pat)))
+    : raw;
+
+  // G-3: annotate changes that violate the schema's declared type.
+  if (opts && opts.schema && typeof opts.schema === "object") {
+    result = result.map(c => {
+      if (c.op === "equal" || c.op === "removed") return c;
+      const tokens = _tokenizePath(c.path);
+      const node = _schemaAtPath(opts.schema, tokens);
+      const violation = _schemaTypeViolation(c.to, node);
+      if (!violation) return c;
+      const annotated = { op: c.op, path: c.path, segs: c.segs };
+      if ("from" in c) annotated.from = c.from;
+      if ("to" in c) annotated.to = c.to;
+      if ("fromType" in c) annotated.fromType = c.fromType;
+      if ("toType" in c) annotated.toType = c.toType;
+      annotated.schemaViolation = violation;
+      return annotated;
+    });
+  }
+
+  return result;
 }
 /* ===== DIFF-CORE:END ===== */
 
@@ -297,4 +430,9 @@ export {
   MAX_DIFF_DEPTH,
   DiffDepthError,
   detectPrecisionLoss,
+  _tokenizePath,
+  _pathMatchesPattern,
+  _collectVolatilePaths,
+  _schemaAtPath,
+  _schemaTypeViolation,
 };

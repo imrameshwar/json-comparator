@@ -111,3 +111,88 @@ function _deepEq(a, b) {
   }
   return false;
 }
+
+// ─── Merge resolution ─────────────────────────────────────────────────────────
+
+/**
+ * Deep-clone a JSON-serialisable value.
+ * @param {*} v
+ * @returns {*}
+ */
+function _deepClone(v) {
+  if (v === null || typeof v !== "object") return v;
+  if (Array.isArray(v)) return v.map(_deepClone);
+  return Object.fromEntries(Object.entries(v).map(([k, vv]) => [k, _deepClone(vv)]));
+}
+
+/**
+ * Set (or delete) a value at the location described by `segs` in a mutable
+ * clone of the document root.  Handles object keys and array indices; star
+ * segments are skipped (no-op).
+ *
+ * @param {*}        root   - mutable clone to modify in place
+ * @param {Segment[]} segs  - path from threeWayDiff
+ * @param {*}        value  - value to write (undefined → delete / splice)
+ */
+function _setAtSegs(root, segs, value) {
+  if (!segs || segs.length === 0) return;
+  let cur = root;
+  for (let i = 0; i < segs.length - 1; i++) {
+    const s = segs[i];
+    if (s.k !== undefined) {
+      if (typeof cur[s.k] !== "object" || cur[s.k] === null) cur[s.k] = {};
+      cur = cur[s.k];
+    } else if (s.i !== undefined) {
+      if (!Array.isArray(cur) || s.i < 0 || s.i >= cur.length) return;
+      cur = cur[s.i];
+    } else {
+      return; // star segment — unsupported path, skip
+    }
+  }
+  const last = segs[segs.length - 1];
+  if (last.k !== undefined) {
+    if (value === undefined) delete cur[last.k];
+    else cur[last.k] = value;
+  } else if (last.i !== undefined) {
+    if (Array.isArray(cur)) {
+      if (value === undefined) cur.splice(last.i, 1);
+      else cur[last.i] = value;
+    }
+  }
+  // star segment as final step: skip
+}
+
+/**
+ * Produce a merged JSON value from a three-way diff with per-conflict
+ * user resolutions.
+ *
+ * Auto-merge rule (documented in Help):
+ *   "left-only"  → accept left value  (right was unchanged from base)
+ *   "right-only" → accept right value (left was unchanged from base)
+ *   "both-same"  → accept left value  (both sides made the same change)
+ *   "conflict"   → use resolutions.get(segId) ∈ "left"|"right"|"base";
+ *                  defaults to "left" when unresolved
+ *
+ * @param {*}                  base        - common ancestor value
+ * @param {ThreeWayChange[]}   changes     - output of threeWayDiff()
+ * @param {Map<string,string>} resolutions - Map of segId → "left"|"right"|"base"
+ * @returns {*} merged value
+ */
+export function resolveMerge(base, changes, resolutions) {
+  const res = resolutions || new Map();
+  const clone = _deepClone(base);
+  for (const c of changes) {
+    const id = JSON.stringify(c.segs);
+    let val;
+    if      (c.kind === "left-only")  val = c.left;
+    else if (c.kind === "right-only") val = c.right;
+    else if (c.kind === "both-same")  val = c.left;
+    else { // conflict
+      const choice = res.get(id) || "left";
+      val = choice === "right" ? c.right : choice === "base" ? c.base : c.left;
+    }
+    // Only apply if the resolved value differs from base (clone starts as base)
+    if (!_deepEq(val, c.base)) _setAtSegs(clone, c.segs, val);
+  }
+  return clone;
+}

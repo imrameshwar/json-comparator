@@ -132,3 +132,29 @@ describe("tokenizeJSON — minify helpers (pure logic)", () => {
     expect(JSON.parse(mini)).toEqual(obj);
   });
 });
+
+// E-5: highlight gating logic — mirrors the guard in refreshHighlight / refreshLineNums.
+// The production code uses: `ta.value.length > MAX_HIGHLIGHT && !forceHighlight`
+const MAX_HIGHLIGHT = 80_000;
+
+function shouldHighlight(len, force) {
+  return !(len > MAX_HIGHLIGHT && !force);
+}
+
+describe("E-5 highlight gating logic", () => {
+  it("highlights when length is under cutoff (force off)", () => {
+    expect(shouldHighlight(79_999, false)).toBe(true);
+  });
+  it("highlights exactly at cutoff boundary (force off)", () => {
+    expect(shouldHighlight(80_000, false)).toBe(true);
+  });
+  it("skips when length exceeds cutoff and force is off", () => {
+    expect(shouldHighlight(80_001, false)).toBe(false);
+  });
+  it("forces highlight when length exceeds cutoff and force is on", () => {
+    expect(shouldHighlight(80_001, true)).toBe(true);
+  });
+  it("forces highlight on a very large input when force is on", () => {
+    expect(shouldHighlight(500_000, true)).toBe(true);
+  });
+});

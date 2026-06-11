@@ -222,10 +222,173 @@ def _diff_array_keyed(src, tgt, path, unordered, key_by, changes, _depth):
 
 
 # ---------------------------------------------------------------------------
+# F-4: ignore-paths helpers
+# ---------------------------------------------------------------------------
+def _tokenize_path(p):
+    """Tokenize a display-format path string into tokens.
+    "$.a[0].b"       -> ["$", "a", "0", "b"]
+    "$.items[*].ts"  -> ["$", "items", "*", "ts"]
+    "$.meta.*.key"   -> ["$", "meta", "*", "key"]
+    """
+    toks = []
+    i = 0
+    while i < len(p):
+        if p[i] == "$":
+            toks.append("$")
+            i += 1
+        elif p[i] == ".":
+            i += 1
+            j = i
+            while j < len(p) and p[j] not in (".", "["):
+                j += 1
+            if j > i:
+                toks.append(p[i:j])
+            i = j
+        elif p[i] == "[":
+            i += 1
+            j = i
+            while j < len(p) and p[j] != "]":
+                j += 1
+            toks.append(p[i:j])
+            i = j + 1
+        else:
+            i += 1
+    return toks
+
+
+def _path_matches_pattern(path, pattern):
+    """Return True if path matches pattern token-for-token.
+    Lengths must be equal; '*' in the pattern matches any single token.
+    """
+    pt = _tokenize_path(path)
+    pp = _tokenize_path(pattern)
+    if len(pt) != len(pp):
+        return False
+    return all(pp[i] == "*" or pp[i] == pt[i] for i in range(len(pp)))
+
+
+def _should_ignore(path, ignore_paths):
+    """Return True if this path should be excluded by any ignore-path pattern."""
+    if not ignore_paths:
+        return False
+    return any(_path_matches_pattern(path, pat) for pat in ignore_paths)
+
+
+# ---------------------------------------------------------------------------
+# G-3: schema-aware diff helpers
+# ---------------------------------------------------------------------------
+def _collect_volatile_paths(schema, path, out):
+    """Walk a JSON Schema and append JSONPath-like patterns for every property
+    node that carries "x-volatile": True into `out`.  Recurses into
+    `properties` and single-schema `items`.
+    E.g. {"properties": {"ts": {"x-volatile": True}}} -> out = ["$.ts"]
+    """
+    if not isinstance(schema, dict):
+        return
+    if schema.get("x-volatile") is True and path != "$":
+        out.append(path)
+    props = schema.get("properties")
+    if isinstance(props, dict):
+        for k, v in props.items():
+            _collect_volatile_paths(v, path + "." + k, out)
+    items = schema.get("items")
+    if isinstance(items, dict):
+        _collect_volatile_paths(items, path + "[*]", out)
+
+
+def _schema_at_path(schema, tokens):
+    """Navigate a JSON Schema tree to the sub-schema node at `tokens` (from
+    _tokenize_path).  Returns None when the path cannot be resolved.
+    Supports: root "$", object properties, array items (single schema).
+    """
+    cur = schema
+    for tok in tokens[1:]:  # skip "$"
+        if not isinstance(cur, dict):
+            return None
+        if tok == "*" or tok.isdigit():
+            items = cur.get("items")
+            cur = items if isinstance(items, dict) else None
+        else:
+            props = cur.get("properties")
+            cur = props.get(tok) if isinstance(props, dict) else None
+    return cur
+
+
+def _type_name_py(value):
+    """Return the JSON Schema type name for a Python value."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    if isinstance(value, dict):
+        return "object"
+    return type(value).__name__
+
+
+def _schema_type_violation(value, schema_node):
+    """Check whether `value` satisfies the `type` declared in `schema_node`.
+    Returns {"expected": ..., "got": ...} if there is a violation, None otherwise.
+    Handles type arrays and the "integer" refinement.
+    """
+    if not isinstance(schema_node, dict):
+        return None
+    declared = schema_node.get("type")
+    if not declared:
+        return None
+    if value is None:
+        return None
+    got = _type_name_py(value)
+    types = declared if isinstance(declared, list) else [declared]
+    for t in types:
+        if t == got:
+            return None
+        if t == "integer" and got == "integer":
+            return None
+        if t == "number" and got in ("number", "integer"):
+            return None
+    return {"expected": "|".join(types), "got": got}
+
+
+def _apply_schema_aware(changes, schema):
+    """Post-process a change list: annotate type violations using schema.
+    Volatile-path suppression is handled before diff via ignore_paths.
+    """
+    if not isinstance(schema, dict):
+        return changes
+    result = []
+    for c in changes:
+        if c.get("type") in ("equal", "removed"):
+            result.append(c)
+            continue
+        value = c.get("to")
+        tokens = _tokenize_path(c["path"])
+        node = _schema_at_path(schema, tokens)
+        violation = _schema_type_violation(value, node)
+        if violation:
+            c = dict(c)
+            c["schema_violation"] = violation
+        result.append(c)
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Core diff function
 # ---------------------------------------------------------------------------
-def diff(src, tgt, path="$", unordered=False, key_by=None, changes=None, _depth=0):
-    """Recursively collect differences into `changes`."""
+def diff(src, tgt, path="$", unordered=False, key_by=None, changes=None, _depth=0, ignore_paths=None):
+    """Recursively collect differences into `changes`.
+
+    ignore_paths is only consumed at the top-level call (when changes is None);
+    the filter is applied after all recursion completes.
+    """
+    _is_top = changes is None
     if changes is None:
         changes = []
 
@@ -246,6 +409,8 @@ def diff(src, tgt, path="$", unordered=False, key_by=None, changes=None, _depth=
             "from_type": type_name(src),
             "to_type": type_name(tgt),
         })
+        if _is_top and ignore_paths:
+            return [c for c in changes if not _should_ignore(c["path"], ignore_paths)]
         return changes
 
     if isinstance(src, dict):
@@ -255,6 +420,8 @@ def diff(src, tgt, path="$", unordered=False, key_by=None, changes=None, _depth=
             changes.append({"type": "added", "path": f"{path}.{key}", "to": tgt[key]})
         for key in sorted(src.keys() & tgt.keys()):
             diff(src[key], tgt[key], f"{path}.{key}", unordered, key_by, changes, _depth + 1)
+        if _is_top and ignore_paths:
+            return [c for c in changes if not _should_ignore(c["path"], ignore_paths)]
         return changes
 
     if isinstance(src, list):
@@ -269,6 +436,8 @@ def diff(src, tgt, path="$", unordered=False, key_by=None, changes=None, _depth=
                     changes.append({"type": "removed", "path": f"{path}[*]", "from": _unwrap(item)})
                 elif t > s:
                     changes.append({"type": "added", "path": f"{path}[*]", "to": _unwrap(item)})
+            if _is_top and ignore_paths:
+                return [c for c in changes if not _should_ignore(c["path"], ignore_paths)]
             return changes
 
         # T6/B2: ordered-array matching strategy selection.
@@ -286,11 +455,15 @@ def diff(src, tgt, path="$", unordered=False, key_by=None, changes=None, _depth=
                 changes.append({"type": "removed", "path": f"{path}[{i}]", "from": src[i]})
             for i in range(len(src), len(tgt)):
                 changes.append({"type": "added", "path": f"{path}[{i}]", "to": tgt[i]})
+        if _is_top and ignore_paths:
+            return [c for c in changes if not _should_ignore(c["path"], ignore_paths)]
         return changes
 
     # scalars
     if src != tgt:
         changes.append({"type": "changed", "path": path, "from": src, "to": tgt})
+    if _is_top and ignore_paths:
+        return [c for c in changes if not _should_ignore(c["path"], ignore_paths)]
     return changes
 
 
@@ -373,15 +546,63 @@ def main():
         "--json", dest="as_json", action="store_true",
         help="emit differences as JSON instead of human-readable text"
     )
+    parser.add_argument(
+        "--ignore-path", dest="ignore_paths", action="append", default=[], metavar="PATTERN",
+        help=(
+            "exclude paths matching PATTERN from the diff (may be repeated). "
+            "Patterns use JSONPath-like syntax: '$' is root, '.key' or '[n]' are "
+            "segments, '*' matches any single segment. "
+            "Examples: --ignore-path '$.meta.*.updatedAt'  "
+            "          --ignore-path '$.items[*].ts'"
+        )
+    )
+    # G-3: schema-aware diff
+    parser.add_argument(
+        "--schema", dest="schema_file", default=None, metavar="SCHEMA_FILE",
+        help=(
+            "path to a JSON Schema file. When combined with --schema-aware, "
+            "paths marked x-volatile:true in the schema are automatically "
+            "suppressed and type violations are annotated in the output."
+        )
+    )
+    parser.add_argument(
+        "--schema-aware", dest="schema_aware", action="store_true",
+        help=(
+            "enable schema-aware diff mode (requires --schema). "
+            "Suppresses x-volatile paths and annotates type violations."
+        )
+    )
     args = parser.parse_args()
 
     src = load(args.source)
     tgt = load(args.target)
 
+    # G-3: load schema and build volatile-path list
+    schema = None
+    if args.schema_file:
+        try:
+            with open(args.schema_file, encoding="utf-8") as fh:
+                schema = json.load(fh)
+        except (OSError, json.JSONDecodeError) as exc:
+            _fail(f"error loading schema: {exc}")
+
+    schema_volatile = []
+    if args.schema_aware and schema:
+        _collect_volatile_paths(schema, "$", schema_volatile)
+
+    ignore_paths = list(args.ignore_paths) if args.ignore_paths else []
+    ignore_paths.extend(schema_volatile)
+    ignore_paths = ignore_paths if ignore_paths else None
+
     try:
-        changes = diff(src, tgt, unordered=args.unordered, key_by=args.array_key)
+        changes = diff(src, tgt, unordered=args.unordered, key_by=args.array_key,
+                       ignore_paths=ignore_paths)
     except DiffDepthError as exc:
         _fail(f"error: {exc}")
+
+    # G-3: annotate type violations
+    if args.schema_aware and schema:
+        changes = _apply_schema_aware(changes, schema)
 
     if args.as_json:
         print(json.dumps(changes, indent=2, ensure_ascii=False))

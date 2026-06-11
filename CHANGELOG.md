@@ -5,6 +5,250 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [3.8] — 2026-06-11
+
+Phase G-3 — Schema-aware diff. **DIFF-CORE change** (mirrored across JS module, HTML inline copy, and Python CLI). 693 JS tests green; Python logic verified on all 16 parity fixtures.
+
+### Added
+
+- **`_collectVolatilePaths(schema, path, out)`** — new DIFF-CORE helper that walks a JSON Schema and collects JSONPath-like patterns for every property node carrying `"x-volatile": true`. Recurses into `properties` (object keys) and single-schema `items` (array elements). Example: `{ properties: { ts: { "x-volatile": true } } }` → `["$.ts"]`.
+
+- **`_schemaAtPath(schema, tokens)`** — new DIFF-CORE helper that navigates a JSON Schema tree by following a tokenized path (from `_tokenizePath`). Supports root `$`, object `properties`, and array `items` (single schema). Returns `null` for unresolvable paths.
+
+- **`_schemaTypeViolation(value, schemaNode)`** — new DIFF-CORE helper that checks whether `value` satisfies the `type` declared in `schemaNode`. Handles type arrays (`["string","null"]`) and the `"integer"` refinement. Returns `{ expected, got }` on violation, `null` otherwise.
+
+- **`diffCore()` extended** — new `opts.schema?: object` option. When supplied: (a) `_collectVolatilePaths` is called and the resulting patterns are merged with `opts.ignorePaths` before filtering (volatile paths are silently suppressed from the diff); (b) each non-removed, non-equal change is checked for a type violation via `_schemaAtPath` + `_schemaTypeViolation`; violating changes gain `schemaViolation: { expected, got }`. The `Change` type comment is updated accordingly. The no-schema code path is unchanged (backward compatible). Byte-identical copies updated in `src/diff-core.js` and `json_compare.html`; `tests/diff-core-parity.test.js` stays green.
+
+- **Web UI — "Schema-aware diff" toggle** — a new checkbox in the Options panel. When checked, `getOpts()` parses the schema from the Schema panel input and passes it as `opts.schema` to `diffCore`. Changes from volatile paths disappear from all views; type-violating changes display an orange `⚠ type` badge (new `.badge.schema-violation` CSS class) in both Table and Tree views. Toggle state is persisted in localStorage. Visible even without a schema loaded (silently no-ops if the schema panel is empty or invalid).
+
+- **`json_compare.py` — `--schema` and `--schema-aware` flags** — `--schema SCHEMA_FILE` loads a JSON Schema file; `--schema-aware` activates both volatile suppression (via `_collect_volatile_paths`) and type annotation (via `_apply_schema_aware`). Without `--schema-aware`, the schema has no effect. Three new Python helpers mirror the DIFF-CORE helpers: `_collect_volatile_paths`, `_schema_at_path`, `_schema_type_violation`; plus `_apply_schema_aware` (post-pass annotator) and `_type_name_py` (Python value → JSON Schema type name).
+
+- **`tests/schema-aware.test.js`** — 33 new JS tests covering: `_collectVolatilePaths` (single/multi volatile, nested objects, array items, root guard, non-dict schema), `_schemaAtPath` (root, top-level, nested, array wildcard, index, unknown, scalar path-through), `_schemaTypeViolation` (matching types, mismatch, type arrays, null, no schema node), `diffCore` with `opts.schema` (suppress volatile, non-volatile unchanged, type violation on change/add/remove, conforming change not annotated, nested property, array items), combined `ignorePaths` + schema volatile, no-schema backward compat.
+
+- **`tests/test_schema_aware.py`** — 33 new Python tests mirroring the JS suite plus 3 CLI integration tests (`--schema-aware` suppresses volatile, `--schema` alone does not suppress, `--schema-aware` annotates type violations in `--json` output).
+
+- **README** — new "Schema-aware diff (G-3)" section documenting the `x-volatile` convention, type-drift annotation, web UI toggle, JS API usage example, and Python CLI flags.
+
+### Changed
+
+- **DIFF-CORE** — three new helpers + extended `diffCore()` function. Byte-identical copies updated in `src/diff-core.js` and `json_compare.html`; parity test green.
+- **`src/diff-core.js` exports** — `_collectVolatilePaths`, `_schemaAtPath`, `_schemaTypeViolation` added to the named exports.
+- **`src/index.js`** — re-exports the three new DIFF-CORE helpers.
+- **`json_compare.html`** — DIFF-CORE block, Options panel, `getOpts()`, `render()`, tree node builder, `renderTable`, `renderTreeNode`, `savePrefs`/`initPrefs`, and Help modal updated.
+- **`index.html`** — regenerated from `json_compare.html` + FEEDBACK delta; `tests/index-parity.test.js` green.
+
+---
+
+## [3.7] — 2026-06-11
+
+Phase G-2 — GitHub Action: JSON diff on PRs. **DIFF-CORE: No.** 660 tests green.
+
+### Added
+
+- **`.github/actions/json-diff/`** — a composite GitHub Action that diffs two JSON files and optionally posts the result as a Markdown PR comment. Inputs: `source-file` (required), `target-file` (required), `fail-on-diff` (default `false`), `comment-on-pr` (default `true`), `github-token` (defaults to `github.token`), `title`, `source-label`, `target-label`, `unordered`, `array-key`. Outputs: `diff-found` (string boolean), `diff-count` (string integer). Exit codes: `0` = equal or `fail-on-diff=false`, `1` = differences + `fail-on-diff=true`, `2` = usage/I/O error. PR comment posting is silently skipped in non-PR contexts (push, cron, etc.) and when `github-token` is empty.
+
+- **`src/markdown-reporter.js`** — extracted from the `buildMarkdown` / `sideVal` / `cellStr` helpers in `json_compare.html` into a standalone, DOM-free ES module. `diffToMarkdown(changes, opts?)` renders a `Change[]` as a GFM Markdown table with a summary line, optional custom title/column labels, and configurable row truncation (`maxRows`, default 200). Pipe characters and newlines in values are escaped for safe GFM table rendering.
+
+- **`.github/actions/json-diff/index.js`** — action implementation. Uses `src/index.js` (diff engine) and `src/markdown-reporter.js` (renderer) via relative ES module imports — zero additional dependencies. Exports `parseInputs`, `readGitHubContext`, `runAction`, `postComment`, `setOutput` for test-ability; the entry-point guard (`process.argv[1]` check) prevents auto-execution on import. PR comments are posted via the built-in `node:https` module against the GitHub REST API.
+
+- **`.github/workflows/json-diff-example.yml`** — copy-paste example workflow demonstrating two patterns: (a) diffing two repo-resident files on every JSON-touching PR, (b) fetching the base-branch version of a file and diffing it against the PR head.
+
+- **`tests/github-action.test.js`** — 30 new tests covering: `diffToMarkdown` (equal docs, added/removed/changed/type_changed rows, custom labels, pipe escaping, maxRows truncation, summary counts, fixture round-trip), `parseInputs` (all inputs + defaults + edge cases), `readGitHubContext` (no event path, mock event file), `runAction` dry-run (crud diffs, equal docs, `comment-on-pr=false`, no-PR context, missing token, `--unordered` passthrough, missing files, invalid JSON), `setOutput` file write.
+
+### Changed
+
+- **`src/index.js`** — `package.json` `"files"` list updated to include `src/markdown-reporter.js` so it ships in the npm tarball.
+
+---
+
+## [3.6] — 2026-06-11
+
+Phase G-1 — Publish diff engine as npm package. **DIFF-CORE: read-only** (exported as-is; no logic changes). 630 tests green.
+
+### Added
+
+- **`src/index.js`** — public API surface for the `json-comparator` npm package. Re-exports `diff` (from `src/diff-core.js`) and `changesToPatch` / `segsToPointer` / `applyPatch` (from `src/json-patch.js`), plus all utility helpers (`typeName`, `isScalar`, `segLabel`, `segKey`, `segId`, `segsStartWith`, `entriesUnderSegs`, `MAX_DIFF_DEPTH`, `DiffDepthError`, `detectPrecisionLoss`, `_tokenizePath`, `_pathMatchesPattern`). No new logic — the diff engine is exposed as-is.
+
+- **`bin/json-diff.js`** — a Node.js CLI entry point that mirrors all `json_compare.py` flags: positional `source target`, `--unordered`, `--array-key KEY`, `--json`, `--ignore-path PATTERN` (repeatable), `-h` / `--help`. Exit codes match the Python CLI: `0` = equal, `1` = differences found, `2` = usage/I/O error. `--json` output uses the same `{type, path, from?, to?}` schema as the Python CLI so the two are interchangeable in scripts.
+
+- **`package.json` updated** — `"private": true` removed (package is now publishable). Added `"exports": { ".": "./src/index.js" }`, `"main": "./src/index.js"`, `"bin": { "json-diff": "./bin/json-diff.js" }`, `"files"` whitelist (`src/diff-core.js`, `src/json-patch.js`, `src/index.js`, `bin/json-diff.js`, `README.md`, `CHANGELOG.md`), `"engines": { "node": ">=18" }`, and package metadata (`keywords`, `license`). All existing `devDependencies` and test scripts are preserved. `npm pack --dry-run` confirms a dependency-free tarball of 8 files / ~85 KB unpacked.
+
+- **`tests/api.test.js`** — 27 new tests covering: re-export identity (`diff` / `changesToPatch` via `src/index.js` produces identical results to direct module imports on 5 shared fixtures, plus `unordered`, `keyBy`, and `ignorePaths` option variants), `changesToPatch` round-trip (crud + nested fixtures patched to equality), utility re-export sanity checks (`typeName`, `isScalar`, `segsToPointer`, `segId`, `MAX_DIFF_DEPTH`, `DiffDepthError`, `detectPrecisionLoss`, `_tokenizePath`, `_pathMatchesPattern`), and package structure guards (bin/src files exist, no runtime `dependencies`, correct `exports` and `bin` entries, no `private` flag).
+
+- **README** — new "Node.js / npm API" section documenting installation, the `diff()` API with a code example, all option fields, the `Change` shape, the full export list, and the `json-diff` CLI with flag examples.
+
+### Changed
+
+- `package.json` — see above. The web app's single-file `file://` model is completely unchanged; the npm packaging is purely additive.
+
+---
+
+## [3.5] — 2026-06-11
+
+Phase F-4 — Ignore-paths globs. **DIFF-CORE change** (mirrored across JS module, HTML inline copy, and Python CLI). 603 tests green.
+
+### Added
+
+- **Ignore paths (F-4)** — a new "Ignore paths" field in the Options panel (textarea, one JSONPath-like pattern per line). Paths matching a pattern are excluded from the diff entirely. Patterns support `*` / `[*]` as a single-segment wildcard: `$.meta.*.updatedAt` suppresses any `updatedAt` directly nested one level under `.meta`; `$.items[*].ts` suppresses the `ts` key on every array element. Pattern length must equal the path depth (`**` / recursive wildcards are not supported in v1 — noted as follow-up).
+
+- **`_tokenizePath(p)` / `_pathMatchesPattern(path, pattern)`** — two new pure helpers added to the DIFF-CORE block (mirrored byte-for-byte in `src/diff-core.js`, `json_compare.html`, exported from the JS module). `_tokenizePath` splits a display-format path string into an array of tokens (`"$.a[0].b"` → `["$","a","0","b"]`; `[*]` and `.*` both normalise to `"*"`). `_pathMatchesPattern` matches token-for-token with `*` as a wildcard.
+
+- **`--ignore-path PATTERN`** CLI flag for `json_compare.py` — repeatable; may be specified multiple times, one pattern per invocation. Applies the same matching logic as the web UI. Example: `python3 json_compare.py src.json tgt.json --ignore-path '$.meta.*.updatedAt' --ignore-path '$.items[*].ts'`.
+
+- **`opts.ignorePaths`** accepted by `diffCore()` / `diff()` as a `string[]`. Filtering is applied as a post-pass on the `Change[]` output so that no internal diff logic had to change.
+
+- **25 new JS tests** in `tests/ignore-paths.test.js` — cover tokenizer, pattern matcher (exact match, mismatches, length mismatches, key wildcard, index wildcard, cross-boundary non-match), and `diffCore` with `ignorePaths` (suppress exact path, wildcard key, wildcard index, added/removed leaf suppression, multiple patterns, combined with `ignoreKeys`).
+
+- **23 new Python tests** in `tests/test_ignore_paths.py` — mirror the JS test coverage plus two CLI integration tests (`--ignore-path` on a temp file).
+
+- **Help modal** — new "Ignore paths (F-4)" bullet under the Options section documenting pattern syntax, the `[*]`/`.*` wildcards, the length-match constraint, and the CLI flag.
+
+### Changed
+
+- **DIFF-CORE** — new `_tokenizePath` and `_pathMatchesPattern` functions added between the last helper and `diffCore()`. `diffCore()` signature extended: `opts.ignorePaths?: string[]`; comment updated. Byte-identical copies updated in `src/diff-core.js` and `json_compare.html`; `tests/diff-core-parity.test.js` stays green.
+
+---
+
+## [3.4] — 2026-06-11
+
+Phase F-3 — 3-Way merge resolution + Export merged JSON. No DIFF-CORE changes. 578 tests green.
+
+### Added
+
+- **3-Way conflict resolution (F-3)** — the 3-Way view is now a fully functional merge editor. Each **⚡ Conflict** row shows **L / B / R** toggle buttons (Left / Base / Right); click to choose which value wins. Non-conflicting changes auto-merge silently: `left-only → L`, `right-only → R`, `both-same → L` (auto-merge rule documented in Help).
+
+- **Export merged JSON** — an "Export merged" action bar appears above the 3-Way table with two buttons:
+  - **⬇ Download** — saves `merged.json` using the current indent setting.
+  - **⎘ Copy** — copies the merged JSON to the clipboard.
+  Resolution choices persist within the session; switching inputs does not reset them.
+
+- **`resolveMerge(base, changes, resolutions)`** in `src/three-way.js` — new exported function that applies conflict resolutions (a `Map<segId, "left"|"right"|"base">`) plus the auto-merge rule to produce a merged value. An identical inline copy lives in `json_compare.html` (between the `T24 / F-3` comment block). No byte-identical DIFF-CORE block changes.
+
+- **Help section "3-Way Merge (F-3)"** — documents the auto-merge rule, conflict resolution, export buttons, and the array-deletion limitation.
+
+- **13 new tests in `tests/three-way.test.js`** — cover the canonical 1-left/1-right/1-conflict fixture (all three resolution choices), both-same auto-merge, identical-input clone, key addition/removal, nested conflict, base-immutability guard.
+
+---
+
+## [3.3] — 2026-06-11
+
+Phase F-2 — JSONPath query bar. No DIFF-CORE changes. 566 tests green.
+
+### Added
+
+- **JSONPath query bar (F-2)** — click **Query** in any pane header (Source, Target, or Base) to open a collapsible per-pane query bar. Type a JSONPath expression (e.g. `$.store.book[*].price`) and press **Enter** or **Run**. Matches are listed with their path and a value preview; click any match to jump directly to that location in the pane's JSON text (reuses the F-1 `jsonPointerToOffset` → `jumpToError` navigation infrastructure). Press **✕** or **Escape** to close.
+
+- **`src/jsonpath.js`** — new hand-rolled, dependency-free JSONPath evaluator. An identical copy is inlined in `json_compare.html` between `/* JSONPATH:START */` and `/* JSONPATH:END */` markers; `tests/jsonpath.test.js` asserts byte-for-byte parity.
+
+- **Supported JSONPath subset (v1)**:
+  - `$` — root
+  - `.key` / `['key']` / `["key"]` — child access (dot and bracket notation)
+  - `[n]` — array index (negative counts from end: `[-1]` = last element)
+  - `[n:m]` / `[n:m:s]` — Python-style slice (omit start/end/step freely)
+  - `.*` / `[*]` — wildcard (all children of an object or array)
+  - `..key` / `..*` — recursive descent (searches the whole subtree)
+  - `[?(@.key)]` — filter: existence test
+  - `[?(@.key OP val)]` — filter: comparison (`==` `!=` `<` `>` `<=` `>=`); `val` can be a number, `'string'`, `"string"`, `true`, `false`, or `null`
+  - `['a','b']` — union of named keys
+
+- **Not supported (follow-up)**: JMESPath / jq, script expressions `$(…)`, nested boolean filter expressions, `@` as standalone root in filters. Results are capped at 500 entries; a footer note shows the overflow count.
+
+- **`tests/jsonpath.test.js`** — 64 new unit tests covering: root, child, index, slice (including reverse-step and empty-range), wildcard, recursive descent, all six filter operators, union, existence filter, error cases (bad expression, unmatched bracket, non-string input), edge cases (null doc, scalar child, 100-level nesting), complex chained expressions, and the parity guard.
+
+---
+
+## [3.2] — 2026-06-11
+
+Phase F-1 — JSON Schema validation. No DIFF-CORE changes. 502 tests green.
+
+### Added
+
+- **JSON Schema validation (F-1)** — press **Schema** in the toolbar to open a collapsible validation panel. Paste or upload a JSON Schema (draft-07 subset), then press **Validate both**, **Source only**, or **Target only**. Each violation is displayed with its **JSON Pointer path** (e.g. `/user/age`) and a human-readable message. Click **Jump** to scroll the relevant pane to the offending location (uses a token-level text walker to find the exact char offset). A **"✓ Valid"** indicator appears when the document satisfies the schema.
+
+- **`src/schema-validate.js`** — new hand-rolled, dependency-free JSON Schema validator. An identical copy is inlined in `json_compare.html` between `/* SCHEMA-VALIDATE:START */` and `/* SCHEMA-VALIDATE:END */` markers; `tests/schema-validate.test.js` asserts byte-for-byte parity between the two copies.
+
+- **Supported keywords**: `type`, `required`, `properties`, `additionalProperties`, `minProperties`/`maxProperties`, `items` (single schema or tuple array), `additionalItems`, `minItems`/`maxItems`, `uniqueItems`, `minimum`/`maximum`/`exclusiveMinimum`/`exclusiveMaximum` (draft-07 number form and draft-04 boolean form), `multipleOf`, `minLength`/`maxLength`, `pattern`, `enum`, `const`, `allOf`/`anyOf`/`oneOf`/`not`, `if`/`then`/`else`, internal `$ref` (`#/definitions/…` and `#/$defs/…`).
+
+- **Not supported** (silently ignored, no crash): `format`, `patternProperties`, `unevaluatedProperties`, `dependentRequired`/`dependentSchemas`, remote `$ref` URLs. The offline `json_compare.html` continues to make zero network requests — remote `$ref`s are skipped without error.
+
+- **`tests/schema-validate.test.js`** — 104 new unit tests covering every supported keyword (pass and fail cases), deep path encoding (JSON Pointer escaping), the depth guard against circular `$ref` chains, unsupported-keyword no-crash behaviour, and a complex multi-violation document.
+
+---
+
+## [3.1] — 2026-06-11
+
+Phase E-5 — Configurable highlight cutoff. No DIFF-CORE changes. 398 tests green.
+
+### Added
+
+- **Force highlight on large inputs (E-5)** — the Options panel now includes a **"Force highlight on large inputs (⚠ perf)"** checkbox. When checked, syntax highlighting and line-number gutters are rendered even for inputs larger than 80 000 characters (the `MAX_HIGHLIGHT` constant), overriding the previous hard cutoff. The default is **off** (existing behavior unchanged). The setting is persisted across reloads via `localStorage` (key `forceHighlight`). A tooltip on the label documents the performance trade-off.
+- **5 new tests in `tests/highlight.test.js`** — cover the gating logic (`shouldHighlight`) for: under cutoff, exactly at boundary, over cutoff with force off, over cutoff with force on, and very large input with force on.
+
+---
+
+## [3.0] — 2026-06-11
+
+Phase E-4 — Share-URL length guard. No DIFF-CORE changes. 393 tests green.
+
+### Added
+
+- **Share-URL size guard (E-4)** — the Share URL flow now encodes the state *before* prompting, so it knows the compressed fragment size. If the encoded fragment exceeds **64 KB** (65 536 chars), the privacy confirm dialog includes an extra warning — `"⚠ This URL is large (~N KB encoded). Many chat apps and browsers silently truncate URLs above 64 KB…"` — and suggests **Save session** as the reliable alternative. The user can still proceed. Under the threshold (the vast majority of real-world comparisons) the dialog is unchanged.
+- **`SHARE_URL_WARN_BYTES` constant and `exceedsShareURLLimit()` helper** exported from `src/url-state.js` — the threshold lives in exactly one place and the helper is independently unit-testable.
+- **6 new tests in `tests/url-state.test.js`** — assert constant value, boundary semantics (at-threshold → false, one-over → true, empty → false), a real small encode is under limit, and consistency of `exceedsShareURLLimit` with raw `.length` comparison.
+
+---
+
+## [2.9] — 2026-06-11
+
+Phase E-3 — Indent choice on Format. No DIFF-CORE changes. 387 tests green.
+
+### Added
+
+- **Format indent selector (E-3)** — the Options panel now includes a **Format indent** dropdown (2 spaces / 3 spaces / 4 spaces / Tab). The chosen indent is applied by both the **Format** and **Sort** pane buttons; **Minify** is unaffected (always produces single-line JSON). Default is 2 spaces. The selection is persisted across reloads via `localStorage` alongside the other prefs.
+- **15 new tests in `tests/persistence.test.js`** — cover round-trip serialisation for all four valid indent values, rejection of invalid values, the `getIndent()` helper (space-count + tab), and `JSON.stringify` output for each indent choice.
+
+---
+
+## [2.8] — 2026-06-11
+
+Phase E-2 — Sort-keys + restore Minify. No DIFF-CORE changes. 373 tests green.
+
+### Added
+
+- **Sort keys (E-2)** — each input pane (Source, Target, Base) now has a **Sort** button. Pressing it recursively alphabetises all object keys in the pane; arrays are left untouched (element order is semantically significant). Formatting is preserved at 2 spaces (the indent selector coming in E-3 will respect this). Invalid JSON triggers the existing auto-repair offer.
+- **Minify restored (E-2)** — the **Minify** button reappears in every pane's tool row (it was wired but unreachable since D-11). Pressing it collapses the pane to a single-line JSON string; invalid input triggers the auto-repair offer.
+- **`tests/format-tools.test.js`** — 20 new unit tests for `sortKeys` covering flat objects, nested objects, array-order preservation, primitive pass-through, and JSON round-trip determinism.
+
+---
+
+## [2.7] — 2026-06-11
+
+Phase E-1 — Find-in-document search. No DIFF-CORE changes. 353 tests green.
+
+### Added
+
+- **Find-in-document (E-1)** — press `Ctrl/Cmd+F` to open an in-app find bar (browser's native find is suppressed). The bar searches the **active surface**: the focused input pane (Source, Target, or Base) or the diff results (Tree / Table). Features:
+  - Typing highlights all matches with a `n / total` counter; no matches → red input border and "No results".
+  - **Enter** / **▼** advances to the next match; **Shift+Enter** / **▲** goes back. Both wrap around.
+  - Matches in input panes are highlighted in the syntax-highlight overlay using the TreeWalker DOM technique; current match is accent-blue, others amber. Scrolls the textarea to keep the current match centered.
+  - Matches in the results pane (`<mark>` elements) survive Tree/Table view switches (re-applied on each `renderView` call).
+  - **Aa** button toggles case-sensitivity (default: case-insensitive).
+  - **Esc** closes the bar and clears all highlights.
+  - Degrades gracefully when syntax highlighting is off (>80 k chars): match offsets are still computed and the textarea scrolls to each match, but no overlay marks are shown.
+  - Surface auto-detects: if results are visible and no textarea is focused, defaults to searching results; if a textarea is focused, searches that pane. Switching focus while the bar is open re-runs the search on the new surface.
+  - New keyboard shortcut added to the shortcuts popover.
+- **`tests/find.test.js`** — 31 new unit tests for `findMatchOffsets` (basic, multi-match, case sensitivity, multi-line JSON, edge cases) and the next/prev wraparound helpers.
+
+### Fixed
+
+- `eslint.config.js` — added `_chk*.js` and `extracted_script.js` to the ignore list (pre-existing generated verification artifacts that were never intended to be linted).
+
+### Notes
+
+- `index.html` regenerated from `json_compare.html` + FEEDBACK delta. Parity test confirms identical outside FEEDBACK markers and CSP line.
+
+---
+
 ## [2.6] — 2026-06-11
 
 Phase D Commit 2 — feature-creep trims (D-8…D-11). No architectural change; DIFF-CORE byte-identical, all preserved IDs still present (removed elements lose their listeners — guarded with existence checks throughout). 322 tests green.

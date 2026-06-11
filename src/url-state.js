@@ -24,8 +24,11 @@
 //   shown in the UI before encoding — this module just provides the codec.
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-export const URL_STATE_PARAM = "state";
-export const STATE_VERSION   = 1;
+export const URL_STATE_PARAM      = "state";
+export const STATE_VERSION        = 1;
+/** E-4: encoded fragment length above which we warn the user.
+ *  Many chat apps and browsers silently truncate URLs longer than ~64 KB. */
+export const SHARE_URL_WARN_BYTES = 64 * 1024; // 65 536
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function toBase64url(bytes) {
@@ -149,6 +152,19 @@ export async function getStateFromURL(hash) {
   const encoded  = params.get(URL_STATE_PARAM);
   if (!encoded) return null;
   return decodeState(encoded);
+}
+
+// ─── exceedsShareURLLimit ─────────────────────────────────────────────────────
+/**
+ * Returns true when the encoded fragment string is longer than the warn
+ * threshold (SHARE_URL_WARN_BYTES).  The encoded string is pure ASCII
+ * (base64url alphabet), so its .length equals its byte count in a URL.
+ *
+ * @param {string} encoded - value returned by encodeState()
+ * @returns {boolean}
+ */
+export function exceedsShareURLLimit(encoded) {
+  return encoded.length > SHARE_URL_WARN_BYTES;
 }
 
 // ─── buildShareURL ────────────────────────────────────────────────────────────

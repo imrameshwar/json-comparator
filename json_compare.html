@@ -125,8 +125,9 @@
   body.col-resizing textarea { pointer-events: none; }
   .pane.base .dot { background: var(--text-3); }
   /* Three-way merge result table */
-  .tw-row { display: grid; grid-template-columns: 40px minmax(160px,28%) 1fr 1fr 1fr; border-bottom: 1px solid var(--border); min-height: 40px; box-sizing: border-box; }
-  .tw-col-headers { display: grid; grid-template-columns: 40px minmax(160px,28%) 1fr 1fr 1fr; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; letter-spacing:.05em; text-transform:uppercase; color: var(--text-3); }
+  /* F-3: 6-column grid (added Resolution column) */
+  .tw-row { display: grid; grid-template-columns: 40px minmax(160px,28%) 1fr 1fr 1fr 110px; border-bottom: 1px solid var(--border); min-height: 40px; box-sizing: border-box; }
+  .tw-col-headers { display: grid; grid-template-columns: 40px minmax(160px,28%) 1fr 1fr 1fr 110px; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; letter-spacing:.05em; text-transform:uppercase; color: var(--text-3); }
   .tw-col-headers div { padding: 9px 14px; }
   .tw-cell { padding: 9px 14px; min-width: 0; font-family: var(--mono); font-size: 12.5px; }
   .tw-kind { display: grid; place-items: center; font-weight: 700; font-size: 11px; }
@@ -141,6 +142,15 @@
   .tw-stat.left-only { color: var(--added);   background: var(--added-bg);   border-color: var(--added-line);   }
   .tw-stat.right-only { color: var(--changed); background: var(--changed-bg); border-color: var(--changed-line); }
   .tw-stat.both-same  { color: var(--modified); background: var(--modified-bg); border-color: var(--modified-line); }
+  /* F-3: resolution column styles */
+  .tw-res-cell { padding: 8px 10px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .tw-res-btn { padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-2); line-height: 1.4; transition: background 0.1s; }
+  .tw-res-btn:hover { background: var(--surface-3, var(--surface-2)); filter: brightness(0.95); }
+  .tw-res-btn.tw-chosen { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tw-auto-tag { font-size: 10px; color: var(--text-3); background: var(--surface-2); border: 1px solid var(--border); border-radius: 3px; padding: 2px 5px; white-space: nowrap; }
+  /* F-3: export merged action bar (rendered inside #results) */
+  .tw-action-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 2px solid var(--border); background: var(--surface-2); flex-wrap: wrap; }
+  .tw-action-bar-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin-right: 2px; }
   .pane { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; transition: border-color var(--transition), box-shadow var(--transition); }
   .pane:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
   .pane-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
@@ -277,6 +287,8 @@
   .badge.removed { color: var(--removed); background: var(--removed-bg); }
   .badge.changed, .badge.type_changed { color: var(--changed); background: var(--changed-bg); }
   .badge.equal { color: var(--text-3); background: var(--surface-3); }
+  /* G-3: schema-violation badge */
+  .badge.schema-violation { color: #fff; background: #c85000; margin-left: 4px; }
 
   /* selection */
   .cbx { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; margin: 0; vertical-align: middle; }
@@ -496,6 +508,26 @@
   .opt-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
   .opt-active { color: var(--accent); font-weight: 700; }
 
+  /* ---- F-1: JSON Schema validation panel ---- */
+  .schema-panel { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 8px; }
+  .schema-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .schema-badge { font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 4px; background: var(--accent-weak); color: var(--accent); white-space: nowrap; }
+  .schema-header-tools { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+  .schema-textarea { width: 100%; height: 110px; resize: vertical; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-family: var(--mono); font-size: 12.5px; line-height: 1.5; }
+  .schema-textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+  .schema-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .schema-results { border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+  .schema-pane-result { display: flex; flex-direction: column; gap: 4px; }
+  .schema-pane-header { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 600; color: var(--text-2); }
+  .schema-valid { color: var(--added); font-size: 12.5px; font-weight: 600; }
+  .schema-invalid { color: var(--removed); font-size: 12.5px; font-weight: 600; }
+  .violation-list { display: flex; flex-direction: column; gap: 3px; }
+  .violation-item { display: flex; align-items: baseline; gap: 6px; padding: 5px 8px; border-radius: 5px; background: var(--removed-bg); border-left: 3px solid var(--removed); font-size: 12.5px; line-height: 1.45; }
+  .violation-path { font-family: var(--mono); font-size: 11.5px; color: var(--removed); white-space: nowrap; flex-shrink: 0; }
+  .violation-msg { color: var(--text); flex: 1; min-width: 0; word-break: break-word; }
+  .violation-jump { flex-shrink: 0; padding: 2px 7px; font-size: 11px; border: 1px solid var(--border-strong); border-radius: 4px; background: var(--surface); color: var(--text-2); cursor: pointer; }
+  .violation-jump:hover { border-color: var(--accent); color: var(--accent); }
+
   /* ---- Filter bar (T11) ---- */
   .filterbar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
   .filter-fields { display: flex; gap: 8px; flex: 1; min-width: 0; flex-wrap: wrap; }
@@ -588,11 +620,11 @@
     .btn { padding: 9px 12px; }
     /* icon-only secondary actions — Compare and Load sample keep their words */
     #newSessionBtn .btn-label, #swapBtn .btn-label, #optionsBtn .btn-label,
-    #saveSession .btn-label, #loadSession .btn-label, #shareUrlBtn .btn-label {
+    #schemaBtn .btn-label, #saveSession .btn-label, #loadSession .btn-label, #shareUrlBtn .btn-label {
       position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
       overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
     }
-    #newSessionBtn, #swapBtn, #optionsBtn, #saveSession, #loadSession, #shareUrlBtn { padding: 9px; gap: 0; }
+    #newSessionBtn, #swapBtn, #optionsBtn, #schemaBtn, #saveSession, #loadSession, #shareUrlBtn { padding: 9px; gap: 0; }
     /* filter bar wraps cleanly: search inputs share a full-width row */
     .filter-fields { flex-basis: 100%; flex-wrap: wrap; }
     .filter-input { min-width: 0; max-width: none; }
@@ -667,6 +699,100 @@
   .lib-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-weak); }
   /* Folder prefix label on library items */
   .lib-item .ifolder { font-size: 11px; color: var(--text-3); display: block; margin-bottom: 1px; }
+
+  /* ---- E-1: Find-in-document bar ---- */
+  .find-bar {
+    position: fixed; top: calc(var(--appbar-h, 62px) + 6px); right: 24px; z-index: 35;
+    display: flex; align-items: center; gap: 6px;
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+    padding: 6px 8px; animation: findBarIn .12s ease;
+  }
+  @keyframes findBarIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  .find-bar.hidden { display: none !important; }
+  .find-input {
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface-2); color: var(--text);
+    font-family: var(--mono); font-size: 12.5px;
+    padding: 5px 9px; width: 180px; outline: none;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .find-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-weak); }
+  .find-input.find-no-match { border-color: var(--removed); background: var(--removed-bg); }
+  .find-counter {
+    font-size: 11.5px; color: var(--text-3); min-width: 58px;
+    text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .find-btn {
+    width: 28px; height: 28px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-2); border-radius: 6px;
+    cursor: pointer; display: grid; place-items: center; flex: none;
+    font-size: 11px; font-weight: 700; transition: var(--transition); padding: 0;
+  }
+  .find-btn:hover { color: var(--text); border-color: var(--border-strong); }
+  .find-btn.active { background: var(--accent-weak); color: var(--accent); border-color: var(--accent); }
+  .find-btn svg { width: 14px; height: 14px; pointer-events: none; }
+  .find-close-btn { font-size: 16px; font-weight: 400; line-height: 1; width: 24px; height: 24px; border: none; background: transparent; color: var(--text-3); cursor: pointer; border-radius: 4px; display: grid; place-items: center; padding: 0; }
+  .find-close-btn:hover { color: var(--text); background: var(--surface-3); }
+  /* Find match highlights — applied to both the editor-highlight pre and #results */
+  mark.find-hl {
+    background: var(--changed-bg); color: inherit;
+    border-radius: 2px; padding: 0 1px; outline: 1px solid var(--changed-line);
+  }
+  mark.find-hl-cur {
+    background: var(--accent); color: #fff;
+    border-radius: 2px; padding: 0 1px;
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+  @media (max-width: 560px) {
+    .find-bar { right: 14px; }
+    .find-input { width: 130px; }
+  }
+
+  /* ---- F-2: JSONPath query bar ---- */
+  .jp-bar {
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .jp-row { display: flex; gap: 4px; align-items: center; }
+  .jp-input {
+    flex: 1 1 0; min-width: 0;
+    font-family: var(--mono); font-size: 12px;
+    padding: 5px 8px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--surface); color: var(--text);
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .jp-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+  .jp-input::placeholder { color: var(--text-3); }
+  .jp-status { font-size: 12px; }
+  .jp-status.jp-error { color: var(--removed); }
+  .jp-status.jp-count { color: var(--text-3); }
+  .jp-matches {
+    list-style: none; margin: 0; padding: 0;
+    max-height: 160px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .jp-match {
+    display: flex; gap: 8px; align-items: baseline;
+    padding: 4px 6px; border-radius: var(--radius-sm);
+    cursor: pointer; user-select: none;
+  }
+  .jp-match:hover { background: var(--surface-3); }
+  .jp-match-path {
+    font-family: var(--mono); font-size: 11px; color: var(--accent);
+    flex: 0 0 auto; max-width: 50%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .jp-match-val {
+    font-family: var(--mono); font-size: 11px; color: var(--text-2);
+    flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .jp-more { font-size: 11px; color: var(--text-3); padding: 3px 6px; font-style: italic; }
 </style>
 </head>
 <body>
@@ -699,6 +825,20 @@
     </div>
   </header>
 
+  <!-- E-1: In-app find bar (Ctrl/Cmd+F). Searches the active input pane or the results. -->
+  <div class="find-bar hidden" id="findBar" role="search" aria-label="Find in document">
+    <input class="find-input" id="findInput" type="text" placeholder="Find…" autocomplete="off" spellcheck="false" aria-label="Search text">
+    <button class="find-btn" id="findCaseBtn" title="Match case" aria-label="Match case" aria-pressed="false">Aa</button>
+    <span class="find-counter" id="findCounter" aria-live="polite" aria-atomic="true"></span>
+    <button class="find-btn" id="findPrevBtn" title="Previous match (Shift+Enter)" aria-label="Previous match">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>
+    </button>
+    <button class="find-btn" id="findNextBtn" title="Next match (Enter)" aria-label="Next match">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <button class="find-close-btn" id="findCloseBtn" title="Close (Esc)" aria-label="Close find">×</button>
+  </div>
+
   <div class="wrap" id="main-content" role="main">
     <div class="panes">
       <div class="pane source">
@@ -711,9 +851,25 @@
             </button>
             <button class="mini" data-target="source" data-act="paste">Paste</button>
             <button class="mini" data-target="source" data-act="format">Format</button>
+            <button class="mini" data-target="source" data-act="sort" title="Alphabetically sort object keys (recursive). Arrays are untouched.">Sort</button>
+            <button class="mini" data-target="source" data-act="minify" title="Collapse to single-line JSON">Minify</button>
+            <button class="mini" id="srcQueryBtn" title="JSONPath query over this pane (F-2)">Query</button>
             <button class="mini" data-target="source" data-act="copy">Copy</button>
             <button class="mini" data-target="source" data-act="clear">Clear</button>
           </span>
+        </div>
+        <!-- F-2: JSONPath query bar — Source pane -->
+        <div class="jp-bar hidden" id="srcJPBar">
+          <div class="jp-row">
+            <input class="jp-input" type="text" id="srcJPExpr"
+                   placeholder="$.path[*].key — JSONPath"
+                   spellcheck="false" autocomplete="off"
+                   aria-label="JSONPath expression — Source pane">
+            <button class="mini" id="srcJPRun">Run</button>
+            <button class="mini" id="srcJPClose" title="Close query bar">✕</button>
+          </div>
+          <div class="jp-status hidden" id="srcJPStatus"></div>
+          <ol class="jp-matches hidden" id="srcJPList" aria-label="JSONPath matches for Source"></ol>
         </div>
         <input type="file" class="pane-file" data-target="source" accept=".json,.jsonc,.json5,.ndjson,application/json,text/plain" hidden>
         <div class="editor-wrap">
@@ -734,9 +890,25 @@
             </button>
             <button class="mini" data-target="target" data-act="paste">Paste</button>
             <button class="mini" data-target="target" data-act="format">Format</button>
+            <button class="mini" data-target="target" data-act="sort" title="Alphabetically sort object keys (recursive). Arrays are untouched.">Sort</button>
+            <button class="mini" data-target="target" data-act="minify" title="Collapse to single-line JSON">Minify</button>
+            <button class="mini" id="tgtQueryBtn" title="JSONPath query over this pane (F-2)">Query</button>
             <button class="mini" data-target="target" data-act="copy">Copy</button>
             <button class="mini" data-target="target" data-act="clear">Clear</button>
           </span>
+        </div>
+        <!-- F-2: JSONPath query bar — Target pane -->
+        <div class="jp-bar hidden" id="tgtJPBar">
+          <div class="jp-row">
+            <input class="jp-input" type="text" id="tgtJPExpr"
+                   placeholder="$.path[*].key — JSONPath"
+                   spellcheck="false" autocomplete="off"
+                   aria-label="JSONPath expression — Target pane">
+            <button class="mini" id="tgtJPRun">Run</button>
+            <button class="mini" id="tgtJPClose" title="Close query bar">✕</button>
+          </div>
+          <div class="jp-status hidden" id="tgtJPStatus"></div>
+          <ol class="jp-matches hidden" id="tgtJPList" aria-label="JSONPath matches for Target"></ol>
         </div>
         <input type="file" class="pane-file" data-target="target" accept=".json,.jsonc,.json5,.ndjson,application/json,text/plain" hidden>
         <div class="editor-wrap">
@@ -756,9 +928,25 @@
             </button>
             <button class="mini" data-target="base" data-act="paste">Paste</button>
             <button class="mini" data-target="base" data-act="format">Format</button>
+            <button class="mini" data-target="base" data-act="sort" title="Alphabetically sort object keys (recursive). Arrays are untouched.">Sort</button>
+            <button class="mini" data-target="base" data-act="minify" title="Collapse to single-line JSON">Minify</button>
+            <button class="mini" id="baseQueryBtn" title="JSONPath query over this pane (F-2)">Query</button>
             <button class="mini" data-target="base" data-act="copy">Copy</button>
             <button class="mini" data-target="base" data-act="clear">Clear</button>
           </span>
+        </div>
+        <!-- F-2: JSONPath query bar — Base pane -->
+        <div class="jp-bar hidden" id="baseJPBar">
+          <div class="jp-row">
+            <input class="jp-input" type="text" id="baseJPExpr"
+                   placeholder="$.path[*].key — JSONPath"
+                   spellcheck="false" autocomplete="off"
+                   aria-label="JSONPath expression — Base pane">
+            <button class="mini" id="baseJPRun">Run</button>
+            <button class="mini" id="baseJPClose" title="Close query bar">✕</button>
+          </div>
+          <div class="jp-status hidden" id="baseJPStatus"></div>
+          <ol class="jp-matches hidden" id="baseJPList" aria-label="JSONPath matches for Base"></ol>
         </div>
         <input type="file" class="pane-file" data-target="base" accept=".json,.jsonc,.json5,.ndjson,application/json,text/plain" hidden>
         <div class="editor-wrap">
@@ -804,6 +992,11 @@
           <button class="btn ghost" id="optionsBtn" title="Comparison options">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.1 4.9a9 9 0 0 1 0 14.2M4.9 4.9a9 9 0 0 0 0 14.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2"/></svg>
             <span class="btn-label">Options</span>
+          </button>
+          <!-- F-1: JSON Schema validation toggle -->
+          <button class="btn ghost" id="schemaBtn" title="Validate against a JSON Schema">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>
+            <span class="btn-label">Schema</span>
           </button>
           <span class="tb-divider"></span>
           <button class="btn ghost" id="saveSession" title="Save both JSONs + settings to a file">
@@ -851,6 +1044,72 @@
           <label class="check" style="font-size:13px" title="JSON with // and /* */ comments"><input type="radio" name="inputFormat" value="jsonc" id="fmtJSONC"> JSONC (comments)</label>
           <label class="check" style="font-size:13px" title="JSON5: comments + trailing commas + single-quoted strings + unquoted keys"><input type="radio" name="inputFormat" value="json5" id="fmtJSON5"> JSON5</label>
           <label class="check" style="font-size:13px" title="Newline-Delimited JSON — one JSON document per line; parsed as an array"><input type="radio" name="inputFormat" value="ndjson" id="fmtNDJSON"> NDJSON</label>
+        </div>
+      </div>
+      <!-- E-3: indent choice for Format / Sort -->
+      <div class="opt-row">
+        <label class="opt-label" for="indentSelect">Format indent</label>
+        <select class="opt-input" id="indentSelect" aria-label="Indentation used by Format and Sort">
+          <option value="2" selected>2 spaces</option>
+          <option value="3">3 spaces</option>
+          <option value="4">4 spaces</option>
+          <option value="tab">Tab (↹)</option>
+        </select>
+      </div>
+      <!-- E-5: force syntax highlighting above the 80k-char cutoff -->
+      <div class="opt-row">
+        <label class="check" style="font-size:13px" title="Re-enables syntax highlighting and line numbers for inputs larger than 80 000 chars. This can slow down the browser on very large files — use with care."><input type="checkbox" id="forceHighlight"> Force highlight on large inputs <span style="color:var(--text-2);font-size:11px">(⚠ perf)</span></label>
+      </div>
+      <!-- F-4: ignore-paths globs -->
+      <div class="opt-row" style="border-top:1px solid var(--border); margin-top:8px; padding-top:10px">
+        <label class="opt-label" for="ignorePaths" style="align-self:flex-start; padding-top:3px">Ignore paths</label>
+        <textarea class="opt-input" id="ignorePaths" rows="3"
+          style="resize:vertical; min-height:54px; font-family:var(--mono); font-size:12px"
+          placeholder="One pattern per line, e.g.:&#10;$.meta.*.updatedAt&#10;$.items[*].ts"
+          aria-label="JSONPath-like patterns for paths to exclude from the diff (one per line)"></textarea>
+      </div>
+      <!-- G-3: schema-aware diff -->
+      <div class="opt-row" style="border-top:1px solid var(--border); margin-top:8px; padding-top:10px">
+        <label class="check" style="font-size:13px" title="When a schema is loaded in the Schema panel: suppress paths marked x-volatile:true and annotate changes that violate the declared type. Has no effect if no schema is loaded."><input type="checkbox" id="schemaAware"> Schema-aware diff <span style="color:var(--text-2);font-size:11px">(uses loaded schema)</span></label>
+      </div>
+    </div>
+
+    <!-- F-1: JSON Schema validation panel -->
+    <div class="schema-panel hidden" id="schemaPanel">
+      <div class="schema-header">
+        <span class="opt-label">JSON Schema</span>
+        <span class="schema-badge">draft-07 subset</span>
+        <span class="schema-header-tools">
+          <button class="mini" id="schemaUploadBtn" title="Load a JSON Schema file">Upload</button>
+          <button class="mini" id="schemaFormatBtn" title="Pretty-print the schema">Format</button>
+          <button class="mini" id="schemaClearBtn" title="Clear the schema and results">Clear</button>
+        </span>
+      </div>
+      <textarea id="schemaInput" class="schema-textarea" spellcheck="false"
+        placeholder='Paste a JSON Schema here, e.g.:&#10;{ "type": "object", "required": ["name"], "properties": { "name": { "type": "string" } } }'></textarea>
+      <input type="file" id="schemaFile" accept=".json,application/json" hidden>
+      <div class="schema-actions">
+        <button class="btn primary sm" id="validateBothBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>
+          Validate both
+        </button>
+        <button class="btn ghost sm" id="validateSrcBtn">Source only</button>
+        <button class="btn ghost sm" id="validateTgtBtn">Target only</button>
+      </div>
+      <div class="schema-results hidden" id="schemaResults">
+        <div class="schema-pane-result" id="schemaResultSrc">
+          <div class="schema-pane-header">
+            <span>Source</span>
+            <span id="schemaSrcStatus"></span>
+          </div>
+          <div class="violation-list" id="srcViolations"></div>
+        </div>
+        <div class="schema-pane-result" id="schemaResultTgt">
+          <div class="schema-pane-header">
+            <span>Target</span>
+            <span id="schemaTgtStatus"></span>
+          </div>
+          <div class="violation-list" id="tgtViolations"></div>
         </div>
       </div>
     </div>
@@ -1044,6 +1303,7 @@
       <h3>Keyboard shortcuts</h3>
       <dl>
         <dt>Compare</dt><dd><kbd>⌘/Ctrl</kbd> + <kbd>Enter</kbd></dd>
+        <dt>Find in document</dt><dd><kbd>⌘/Ctrl</kbd> + <kbd>F</kbd></dd>
         <dt>Next difference</dt><dd><kbd>N</kbd></dd>
         <dt>Previous difference</dt><dd><kbd>P</kbd></dd>
         <dt>Navigate tree</dt><dd><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd></dd>
@@ -1067,8 +1327,32 @@
               <div class="help-view-card"><b>Tree</b><span>Collapsible JSON structure. Color-coded: green = added, red = removed, amber = changed value, violet = contains changes.</span></div>
               <div class="help-view-card"><b>Table</b><span>Flat list of every change with its path (<code>$.address.geo.lng</code>), old value, and new value.</span></div>
               <div class="help-view-card"><b>Raw</b><span>Side-by-side (or unified) text diff with word-level highlights and scroll sync.</span></div>
-              <div class="help-view-card"><b>3-Way</b><span>Three-way merge view (Base / Source / Target). Shows conflicts and side-only changes. Appears when the Base pane has content.</span></div>
+              <div class="help-view-card"><b>3-Way</b><span>Three-way merge view (Base / Source / Target). Conflicts show <b>L / B / R</b> buttons — click to choose which value wins. Non-conflicting changes auto-merge (left-only → L, right-only → R, both-same → L). Click <b>Export merged</b> (⬇ Download or ⎘ Copy) to get the resolved JSON. Appears when the Base pane has content.</span></div>
             </div>
+          </div>
+          <div class="help-section">
+            <h4>3-Way Merge (F-3)</h4>
+            <p>Paste a common ancestor in the <b>Base</b> pane, then switch to the <b>3-Way</b> tab. Each path is classified as:</p>
+            <ul>
+              <li><b>Left only</b> — changed in Source but not in Target; auto-merged from Source.</li>
+              <li><b>Right only</b> — changed in Target but not in Source; auto-merged from Target.</li>
+              <li><b>Both (same)</b> — identical change on both sides; auto-merged.</li>
+              <li><b>⚡ Conflict</b> — different changes on both sides. Click <b>L</b>, <b>B</b>, or <b>R</b> to pick the winning value (Left / Base / Right). Default is <b>L</b>.</li>
+            </ul>
+            <p>When all conflicts are resolved, click <b>⬇ Download</b> or <b>⎘ Copy</b> in the <em>Export merged</em> bar to get the final JSON.</p>
+            <p><b>Limitation:</b> array-element deletions at a specific index are applied via splice and may shift subsequent indices if multiple deletions exist in the same array. For complex array merges, review the exported result.</p>
+          </div>
+          <div class="help-section">
+            <h4>JSONPath Query Bar (F-2)</h4>
+            <p>Click <b>Query</b> in any pane header to open a JSONPath query bar. Type an expression and press <b>Enter</b> or <b>Run</b>. Matched values and their count are listed below; click any match to scroll the pane to that location in the JSON text.</p>
+            <p><b>Supported subset (v1):</b> <code>$</code> root &nbsp;·&nbsp; <code>.key</code> / <code>['key']</code> child &nbsp;·&nbsp; <code>[n]</code> index (negative from end) &nbsp;·&nbsp; <code>[n:m:s]</code> slice &nbsp;·&nbsp; <code>[*]</code> / <code>.*</code> wildcard &nbsp;·&nbsp; <code>..key</code> / <code>..*</code> recursive descent &nbsp;·&nbsp; <code>[?(@.key)]</code> existence filter &nbsp;·&nbsp; <code>[?(@.key OP val)]</code> comparison filter (<code>== != &lt; &gt; &lt;= &gt;=</code>; val = number, <code>'string'</code>, boolean, null) &nbsp;·&nbsp; <code>['a','b']</code> union.</p>
+            <p><b>Not supported (follow-up):</b> JMESPath / jq, script expressions <code>$(…)</code>, nested boolean filters, @ as standalone root in filters.</p>
+          </div>
+          <div class="help-section">
+            <h4>JSON Schema Validation (F-1)</h4>
+            <p>Press <b>Schema</b> in the toolbar to open the validation panel. Paste or upload a JSON Schema, then press <b>Validate both</b> (or Source/Target only). Each violation is listed with its <b>JSON Pointer path</b> (e.g. <code>/user/age</code>) and a human-readable message. Click <b>Jump</b> to scroll the pane to that location.</p>
+            <p><b>Supported keywords</b> (draft-07 subset): <code>type</code>, <code>required</code>, <code>properties</code>, <code>additionalProperties</code>, <code>minProperties</code>/<code>maxProperties</code>, <code>items</code> (single schema or tuple array), <code>additionalItems</code>, <code>minItems</code>/<code>maxItems</code>, <code>uniqueItems</code>, <code>minimum</code>/<code>maximum</code>/<code>exclusiveMinimum</code>/<code>exclusiveMaximum</code>, <code>multipleOf</code>, <code>minLength</code>/<code>maxLength</code>, <code>pattern</code>, <code>enum</code>, <code>const</code>, <code>allOf</code>/<code>anyOf</code>/<code>oneOf</code>/<code>not</code>, <code>if</code>/<code>then</code>/<code>else</code>, internal <code>$ref</code> (<code>#/definitions/…</code> and <code>#/$defs/…</code>).</p>
+            <p><b>Not supported</b> (silently ignored): <code>format</code>, <code>patternProperties</code>, <code>unevaluatedProperties</code>, <code>dependentRequired</code>/<code>dependentSchemas</code>, remote <code>$ref</code> URLs. No network requests are ever made — remote <code>$ref</code>s are skipped without an error.</p>
           </div>
           <div class="help-section">
             <h4>Options</h4>
@@ -1076,9 +1360,12 @@
               <li><b>Unordered arrays</b> — ignore element order when comparing scalar arrays.</li>
               <li><b>Array key field</b> — match object-arrays by a shared key (e.g. <code>id</code>) instead of by position.</li>
               <li><b>Ignore keys</b> — comma-separated key names to skip (e.g. <code>updatedAt, version</code>).</li>
+              <li><b>Ignore paths (F-4)</b> — one JSONPath-like pattern per line; matching paths are excluded from the diff entirely. Use <code>*</code> (or <code>[*]</code>) to wildcard a single segment: <code>$.meta.*.updatedAt</code> suppresses any <code>updatedAt</code> under a direct child of <code>.meta</code>; <code>$.items[*].ts</code> suppresses the <code>ts</code> field of every array element. Pattern length must equal the path length (<code>**</code> / recursive wildcards are not supported in v1). Also available in the CLI as <code>--ignore-path PATTERN</code> (repeatable).</li>
               <li><b>Numeric tolerance</b> — treat values as equal if their absolute difference is within this threshold.</li>
               <li><b>Ignore string case</b> — <code>"Hello"</code> and <code>"hello"</code> are equal.</li>
               <li><b>Input format</b> — JSON (strict), JSONC (comments), JSON5, or NDJSON (one document per line).</li>
+              <li><b>Format indent</b> — indentation used by the <em>Format</em> and <em>Sort</em> pane buttons: 2 spaces (default), 3 spaces, 4 spaces, or a tab character. Persisted across reloads.</li>
+              <li><b>Schema-aware diff (G-3)</b> — requires a schema to be loaded in the Schema panel. When enabled: (a) paths whose schema property carries <code>"x-volatile": true</code> are automatically suppressed from the diff (treated as if they were in "Ignore paths"); (b) changes whose new value violates the property's declared <code>type</code> are annotated with an orange <b>⚠ type</b> badge. Has no effect if no schema is loaded. Also available in the CLI via <code>--schema &lt;file&gt; --schema-aware</code>.</li>
             </ul>
           </div>
           <div class="help-section">
@@ -1098,7 +1385,7 @@
           </div>
           <div class="help-section" style="margin-bottom:4px">
             <h4>About</h4>
-            <p>JSON Comparator v2.5 · <a href="https://github.com/imrameshwar/json-comparator" target="_blank" rel="noopener noreferrer">GitHub</a> · MIT License</p>
+            <p>JSON Comparator v2.8 · <a href="https://github.com/imrameshwar/json-comparator" target="_blank" rel="noopener noreferrer">GitHub</a> · MIT License</p>
           </div>
         </div>
       </div>
@@ -1108,7 +1395,7 @@
   </div>
 
   <footer class="app-footer">
-    <span>JSON Comparator v2.5</span>
+    <span>JSON Comparator v2.7</span>
     <span class="sep">·</span>
     <a href="https://github.com/imrameshwar/json-comparator" target="_blank" rel="noopener noreferrer">GitHub</a>
     <span class="sep">·</span>
@@ -1365,15 +1652,766 @@ function _walk(src, tgt, path, segs, unordered, keyBy, out, depth, opts) {
   return out;
 }
 
-// Public entry point. Change = { op, path, segs, from?, to?, fromType?, toType? }.
+// F-4: ignore-paths — tokenize a display-format path string into an array of tokens.
+// "$.a[0].b"        → ["$", "a", "0", "b"]
+// "$.items[*].ts"   → ["$", "items", "*", "ts"]
+// "$.meta.*.key"    → ["$", "meta", "*", "key"]
+// Wildcard token "*" (from "[*]" or ".*") matches any single token during comparison.
+function _tokenizePath(p) {
+  const toks = [];
+  let i = 0;
+  while (i < p.length) {
+    if (p[i] === "$") { toks.push("$"); i++; }
+    else if (p[i] === ".") {
+      i++;
+      let j = i;
+      while (j < p.length && p[j] !== "." && p[j] !== "[") j++;
+      if (j > i) toks.push(p.slice(i, j));
+      i = j;
+    } else if (p[i] === "[") {
+      i++;
+      let j = i;
+      while (j < p.length && p[j] !== "]") j++;
+      toks.push(p.slice(i, j));
+      i = j + 1;
+    } else {
+      i++;
+    }
+  }
+  return toks;
+}
+
+// Returns true if `path` (display string) matches `pattern` token-for-token.
+// Lengths must be equal; "*" in the pattern matches any single token.
+function _pathMatchesPattern(path, pattern) {
+  const pt = _tokenizePath(path), pp = _tokenizePath(pattern);
+  if (pt.length !== pp.length) return false;
+  for (let i = 0; i < pp.length; i++) {
+    if (pp[i] !== "*" && pp[i] !== pt[i]) return false;
+  }
+  return true;
+}
+
+// G-3: schema-aware diff helpers.
+// These are pure (no DOM, no globals, no I/O) so they live inside DIFF-CORE.
+//
+// _collectVolatilePaths(schema, path, out)
+//   Walk a JSON Schema and push JSONPath-like patterns for every property node
+//   that carries "x-volatile": true into `out`. Recurses into `properties` and
+//   single-schema `items` (all array elements share one schema).
+//   E.g. { properties: { ts: { "x-volatile": true } } } → out = ["$.ts"]
+function _collectVolatilePaths(schema, path, out) {
+  if (!schema || typeof schema !== "object") return;
+  if (schema["x-volatile"] === true && path !== "$") out.push(path);
+  if (schema.properties && typeof schema.properties === "object") {
+    const keys = Object.keys(schema.properties);
+    for (let ki = 0; ki < keys.length; ki++) {
+      _collectVolatilePaths(schema.properties[keys[ki]], path + "." + keys[ki], out);
+    }
+  }
+  if (schema.items && typeof schema.items === "object" && !Array.isArray(schema.items)) {
+    _collectVolatilePaths(schema.items, path + "[*]", out);
+  }
+}
+
+// Navigate a JSON Schema tree to the sub-schema node at `tokens` (from
+// _tokenizePath). Returns null when the path cannot be resolved.
+// Supports: root "$", object properties, array items (single schema).
+function _schemaAtPath(schema, tokens) {
+  let cur = schema;
+  for (let i = 1; i < tokens.length; i++) {
+    if (!cur || typeof cur !== "object") return null;
+    const tok = tokens[i];
+    if (tok === "*" || /^\d+$/.test(tok)) {
+      cur = (cur.items && typeof cur.items === "object" && !Array.isArray(cur.items))
+            ? cur.items : null;
+    } else {
+      cur = (cur.properties && typeof cur.properties[tok] === "object")
+            ? cur.properties[tok] : null;
+    }
+  }
+  return cur;
+}
+
+// Check whether `value` satisfies the `type` declared in `schemaNode`.
+// Returns { expected, got } if there is a type violation, null otherwise.
+// Handles type arrays (["string","null"]) and the "integer" refinement.
+function _schemaTypeViolation(value, schemaNode) {
+  if (!schemaNode || !schemaNode.type) return null;
+  if (value === null || value === undefined) return null;
+  const got = typeName(value);
+  const declared = Array.isArray(schemaNode.type) ? schemaNode.type : [schemaNode.type];
+  const ok = declared.some(t =>
+    t === got ||
+    (t === "integer" && got === "number" && Number.isInteger(value)) ||
+    (t === "number"  && got === "number")
+  );
+  if (!ok) return { expected: declared.join("|"), got };
+  return null;
+}
+
+// Public entry point. Change = { op, path, segs, from?, to?, fromType?, toType?,
+//                                 schemaViolation?: { expected, got } }.
 // opts: { unordered?: boolean, keyBy?: string,
-//         ignoreKeys?: string[], numericTolerance?: number, ignoreCase?: boolean }
+//         ignoreKeys?: string[], numericTolerance?: number, ignoreCase?: boolean,
+//         ignorePaths?: string[], schema?: object }
 function diffCore(src, tgt, opts) {
   const unordered = !!(opts && opts.unordered);
   const keyBy = (opts && typeof opts.keyBy === "string") ? opts.keyBy : null;
-  return _walk(src, tgt, "$", [], unordered, keyBy, [], 0, opts || {});
+  const raw = _walk(src, tgt, "$", [], unordered, keyBy, [], 0, opts || {});
+
+  // Build combined ignorePaths: explicit patterns + schema volatile paths (G-3).
+  const explicitIgnore = (opts && Array.isArray(opts.ignorePaths) && opts.ignorePaths.length) ? opts.ignorePaths : [];
+  const schemaIgnore = [];
+  if (opts && opts.schema && typeof opts.schema === "object") {
+    _collectVolatilePaths(opts.schema, "$", schemaIgnore);
+  }
+  const ignorePaths = (explicitIgnore.length || schemaIgnore.length)
+    ? explicitIgnore.concat(schemaIgnore) : null;
+
+  let result = ignorePaths
+    ? raw.filter(c => !ignorePaths.some(pat => _pathMatchesPattern(c.path, pat)))
+    : raw;
+
+  // G-3: annotate changes that violate the schema's declared type.
+  if (opts && opts.schema && typeof opts.schema === "object") {
+    result = result.map(c => {
+      if (c.op === "equal" || c.op === "removed") return c;
+      const tokens = _tokenizePath(c.path);
+      const node = _schemaAtPath(opts.schema, tokens);
+      const violation = _schemaTypeViolation(c.to, node);
+      if (!violation) return c;
+      const annotated = { op: c.op, path: c.path, segs: c.segs };
+      if ("from" in c) annotated.from = c.from;
+      if ("to" in c) annotated.to = c.to;
+      if ("fromType" in c) annotated.fromType = c.fromType;
+      if ("toType" in c) annotated.toType = c.toType;
+      annotated.schemaViolation = violation;
+      return annotated;
+    });
+  }
+
+  return result;
 }
 /* ===== DIFF-CORE:END ===== */
+
+/* ---- F-1: JSON Schema validator (inline copy — src/schema-validate.js is source of truth) ---- */
+/* SCHEMA-VALIDATE:START */
+function _svTypeOf(v) {
+  if (v === null) return "null";
+  if (Array.isArray(v)) return "array";
+  return typeof v; // "string" | "number" | "boolean" | "object"
+}
+
+function _svIsInteger(v) {
+  return typeof v === "number" && Number.isFinite(v) && v === Math.floor(v);
+}
+
+function _svDeepEqual(a, b) {
+  if (a === b) return true;
+  if (a === null || b === null) return false;
+  if (typeof a !== typeof b) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    return a.every((v, i) => _svDeepEqual(v, b[i]));
+  }
+  if (typeof a === "object" && typeof b === "object") {
+    const ka = Object.keys(a), kb = Object.keys(b);
+    if (ka.length !== kb.length) return false;
+    return ka.every(k => Object.prototype.hasOwnProperty.call(b, k) && _svDeepEqual(a[k], b[k]));
+  }
+  return false;
+}
+
+// Resolve an internal $ref against the root schema.
+// Only "#/definitions/..." and "#/$defs/..." are supported; remote refs return null.
+function _svResolveRef(ref, root) {
+  if (typeof ref !== "string" || !ref.startsWith("#/")) return null;
+  const parts = ref.slice(2).split("/").map(s => s.replace(/~1/g, "/").replace(/~0/g, "~"));
+  let node = root;
+  for (const p of parts) {
+    if (typeof node !== "object" || node === null || !Object.prototype.hasOwnProperty.call(node, p)) return null;
+    node = node[p];
+  }
+  return node;
+}
+
+// Append a key or index segment to a JSON Pointer path string.
+function _svChild(path, key) {
+  return path + "/" + String(key).replace(/~/g, "~0").replace(/\//g, "~1");
+}
+
+// Core recursive validator. Returns Violation[].
+function _svValidate(schema, data, path, root, depth) {
+  if (depth > 32) return []; // guard against circular $ref chains
+  // Boolean schemas
+  if (schema === true) return [];
+  if (schema === false) return [{ path, message: "Schema disallows this value." }];
+  if (typeof schema !== "object" || schema === null) return [];
+
+  // $ref takes precedence over sibling keywords (draft-07 spec).
+  if ("$ref" in schema) {
+    const resolved = _svResolveRef(schema.$ref, root);
+    if (resolved === null) return []; // remote or unresolvable ref — skip silently
+    return _svValidate(resolved, data, path, root, depth + 1);
+  }
+
+  const errs = [];
+  const t = _svTypeOf(data);
+
+  // ── type ──────────────────────────────────────────────────────────────────
+  if ("type" in schema) {
+    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+    const typeOk = types.some(expected =>
+      expected === "integer" ? _svIsInteger(data) : t === expected
+    );
+    if (!typeOk) {
+      errs.push({ path, message: "Expected type " + types.join(" or ") + ", got " + t + "." });
+    }
+  }
+
+  // ── enum ──────────────────────────────────────────────────────────────────
+  if ("enum" in schema && Array.isArray(schema.enum)) {
+    if (!schema.enum.some(v => _svDeepEqual(v, data))) {
+      errs.push({ path, message: "Value must be one of: " + schema.enum.map(v => JSON.stringify(v)).join(", ") + "." });
+    }
+  }
+
+  // ── const ─────────────────────────────────────────────────────────────────
+  if ("const" in schema) {
+    if (!_svDeepEqual(schema.const, data)) {
+      errs.push({ path, message: "Value must equal " + JSON.stringify(schema.const) + "." });
+    }
+  }
+
+  // ── string keywords ───────────────────────────────────────────────────────
+  if (typeof data === "string") {
+    if ("minLength" in schema && typeof schema.minLength === "number" && data.length < schema.minLength) {
+      errs.push({ path, message: "String length " + data.length + " is less than minLength " + schema.minLength + "." });
+    }
+    if ("maxLength" in schema && typeof schema.maxLength === "number" && data.length > schema.maxLength) {
+      errs.push({ path, message: "String length " + data.length + " exceeds maxLength " + schema.maxLength + "." });
+    }
+    if ("pattern" in schema && typeof schema.pattern === "string") {
+      try {
+        if (!new RegExp(schema.pattern, "u").test(data)) {
+          errs.push({ path, message: "String does not match pattern /" + schema.pattern + "/." });
+        }
+      } catch (_e) { /* invalid regex — skip */ }
+    }
+  }
+
+  // ── number keywords ───────────────────────────────────────────────────────
+  if (typeof data === "number") {
+    if ("minimum" in schema && typeof schema.minimum === "number" && data < schema.minimum) {
+      errs.push({ path, message: "Value " + data + " is less than minimum " + schema.minimum + "." });
+    }
+    if ("maximum" in schema && typeof schema.maximum === "number" && data > schema.maximum) {
+      errs.push({ path, message: "Value " + data + " exceeds maximum " + schema.maximum + "." });
+    }
+    // exclusiveMinimum: draft-07 = number, draft-04 = boolean (both supported)
+    if ("exclusiveMinimum" in schema) {
+      const exMin = schema.exclusiveMinimum;
+      if (typeof exMin === "number" && data <= exMin) {
+        errs.push({ path, message: "Value " + data + " must be strictly greater than exclusiveMinimum " + exMin + "." });
+      } else if (exMin === true && "minimum" in schema && data <= schema.minimum) {
+        errs.push({ path, message: "Value " + data + " must be strictly greater than " + schema.minimum + " (exclusiveMinimum)." });
+      }
+    }
+    if ("exclusiveMaximum" in schema) {
+      const exMax = schema.exclusiveMaximum;
+      if (typeof exMax === "number" && data >= exMax) {
+        errs.push({ path, message: "Value " + data + " must be strictly less than exclusiveMaximum " + exMax + "." });
+      } else if (exMax === true && "maximum" in schema && data >= schema.maximum) {
+        errs.push({ path, message: "Value " + data + " must be strictly less than " + schema.maximum + " (exclusiveMaximum)." });
+      }
+    }
+    if ("multipleOf" in schema && typeof schema.multipleOf === "number" && schema.multipleOf > 0) {
+      const rem = data % schema.multipleOf;
+      const tol = Math.abs(data) * Number.EPSILON * 8;
+      if (Math.abs(rem) > tol && Math.abs(rem - schema.multipleOf) > tol) {
+        errs.push({ path, message: "Value " + data + " is not a multiple of " + schema.multipleOf + "." });
+      }
+    }
+  }
+
+  // ── object keywords ───────────────────────────────────────────────────────
+  if (t === "object") {
+    const objKeys = Object.keys(data);
+
+    if ("required" in schema && Array.isArray(schema.required)) {
+      for (const key of schema.required) {
+        if (!Object.prototype.hasOwnProperty.call(data, key)) {
+          errs.push({ path, message: "Required property \"" + key + "\" is missing." });
+        }
+      }
+    }
+
+    if ("minProperties" in schema && typeof schema.minProperties === "number" && objKeys.length < schema.minProperties) {
+      errs.push({ path, message: "Object has " + objKeys.length + " properties, minimum is " + schema.minProperties + "." });
+    }
+    if ("maxProperties" in schema && typeof schema.maxProperties === "number" && objKeys.length > schema.maxProperties) {
+      errs.push({ path, message: "Object has " + objKeys.length + " properties, maximum is " + schema.maxProperties + "." });
+    }
+
+    const propSchemas = (typeof schema.properties === "object" && schema.properties !== null) ? schema.properties : {};
+
+    for (const key of Object.keys(propSchemas)) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        const sub = _svValidate(propSchemas[key], data[key], _svChild(path, key), root, depth);
+        for (const e of sub) errs.push(e);
+      }
+    }
+
+    if ("additionalProperties" in schema) {
+      const addl = schema.additionalProperties;
+      const knownProps = new Set(Object.keys(propSchemas));
+      for (const key of objKeys) {
+        if (!knownProps.has(key)) {
+          const cp = _svChild(path, key);
+          if (addl === false) {
+            errs.push({ path: cp, message: "Additional property \"" + key + "\" is not allowed (additionalProperties: false)." });
+          } else if (typeof addl === "object" && addl !== null) {
+            const sub = _svValidate(addl, data[key], cp, root, depth);
+            for (const e of sub) errs.push(e);
+          }
+        }
+      }
+    }
+  }
+
+  // ── array keywords ────────────────────────────────────────────────────────
+  if (t === "array") {
+    if ("minItems" in schema && typeof schema.minItems === "number" && data.length < schema.minItems) {
+      errs.push({ path, message: "Array has " + data.length + " item" + (data.length === 1 ? "" : "s") + ", minimum is " + schema.minItems + "." });
+    }
+    if ("maxItems" in schema && typeof schema.maxItems === "number" && data.length > schema.maxItems) {
+      errs.push({ path, message: "Array has " + data.length + " item" + (data.length === 1 ? "" : "s") + ", maximum is " + schema.maxItems + "." });
+    }
+
+    if ("items" in schema) {
+      const itemsS = schema.items;
+      if (Array.isArray(itemsS)) {
+        // Tuple validation
+        for (let idx = 0; idx < Math.min(data.length, itemsS.length); idx++) {
+          const sub = _svValidate(itemsS[idx], data[idx], _svChild(path, idx), root, depth);
+          for (const e of sub) errs.push(e);
+        }
+        if ("additionalItems" in schema && data.length > itemsS.length) {
+          const ai = schema.additionalItems;
+          for (let idx = itemsS.length; idx < data.length; idx++) {
+            const cp = _svChild(path, idx);
+            if (ai === false) {
+              errs.push({ path: cp, message: "Additional item at index " + idx + " is not allowed (additionalItems: false)." });
+            } else if (typeof ai === "object" && ai !== null) {
+              const sub = _svValidate(ai, data[idx], cp, root, depth);
+              for (const e of sub) errs.push(e);
+            }
+          }
+        }
+      } else {
+        // All-items schema
+        for (let idx = 0; idx < data.length; idx++) {
+          const sub = _svValidate(itemsS, data[idx], _svChild(path, idx), root, depth);
+          for (const e of sub) errs.push(e);
+        }
+      }
+    }
+
+    if (schema.uniqueItems === true) {
+      const seen = [];
+      for (let idx = 0; idx < data.length; idx++) {
+        if (seen.some(v => _svDeepEqual(v, data[idx]))) {
+          errs.push({ path: _svChild(path, idx), message: "Duplicate item at index " + idx + " (uniqueItems: true)." });
+        } else {
+          seen.push(data[idx]);
+        }
+      }
+    }
+  }
+
+  // ── composition keywords ──────────────────────────────────────────────────
+  if ("allOf" in schema && Array.isArray(schema.allOf)) {
+    for (const sub of schema.allOf) {
+      const subErrs = _svValidate(sub, data, path, root, depth);
+      for (const e of subErrs) errs.push(e);
+    }
+  }
+
+  if ("anyOf" in schema && Array.isArray(schema.anyOf)) {
+    const anyOk = schema.anyOf.some(sub => _svValidate(sub, data, path, root, depth).length === 0);
+    if (!anyOk) {
+      errs.push({ path, message: "Value does not match any of the expected schemas (anyOf)." });
+    }
+  }
+
+  if ("oneOf" in schema && Array.isArray(schema.oneOf)) {
+    const oneCount = schema.oneOf.filter(sub => _svValidate(sub, data, path, root, depth).length === 0).length;
+    if (oneCount !== 1) {
+      errs.push({ path, message: "Value must match exactly one schema (oneOf), matched " + oneCount + "." });
+    }
+  }
+
+  if ("not" in schema) {
+    const notErrs = _svValidate(schema.not, data, path, root, depth);
+    if (notErrs.length === 0) {
+      errs.push({ path, message: "Value must not match the 'not' schema." });
+    }
+  }
+
+  if ("if" in schema) {
+    const ifErrs = _svValidate(schema.if, data, path, root, depth);
+    if (ifErrs.length === 0) {
+      if ("then" in schema) {
+        const sub = _svValidate(schema.then, data, path, root, depth);
+        for (const e of sub) errs.push(e);
+      }
+    } else {
+      if ("else" in schema) {
+        const sub = _svValidate(schema.else, data, path, root, depth);
+        for (const e of sub) errs.push(e);
+      }
+    }
+  }
+
+  return errs;
+}
+
+/**
+ * validateSchema(schema, data) → Violation[]
+ *
+ * Validates `data` against `schema` (JSON Schema draft-07 subset).
+ *
+ * @param {object|boolean} schema  Parsed JSON Schema object or boolean.
+ * @param {*}              data    Parsed JSON value to validate.
+ * @returns {Array<{path: string, message: string}>}
+ *   Empty array = valid. `path` is a JSON Pointer string ("" = root,
+ *   "/name" = top-level key, "/items/0/price" = nested path).
+ */
+function validateSchema(schema, data) {
+  if (schema === null || schema === undefined) return [];
+  return _svValidate(schema, data, "", schema, 0);
+}
+/* SCHEMA-VALIDATE:END */
+
+/* JSONPATH:START */
+/**
+ * Evaluate a JSONPath expression against an already-parsed JSON value.
+ *
+ * @param {any}    doc  — JS value (object, array, string, number, bool, null)
+ * @param {string} expr — JSONPath expression string, e.g. "$.store.book[*].price"
+ * @returns {{ path: Array<string|number>, value: any }[]}
+ * @throws {Error} on invalid expression — message is user-friendly
+ */
+function jsonpathQuery(doc, expr) {
+  if (typeof expr !== "string") throw new Error("JSONPath expression must be a string.");
+  const e = expr.trim();
+  if (e === "" || e === "$") return [{ path: [], value: doc }];
+  if (e[0] !== "$") throw new Error("JSONPath expression must start with '$'. Got: " + JSON.stringify(e[0]));
+  const steps = _jpParse(e);
+  const results = [];
+  _jpEval([{ path: [], value: doc }], steps, 1, results);
+  return results;
+}
+
+// ─── Parser ──────────────────────────────────────────────────────────────────
+// Returns an array of step objects. steps[0] is always {type:'root'}.
+
+function _jpParse(e) {
+  const steps = [{ type: "root" }];
+  let i = 1; // skip leading '$'
+  const n = e.length;
+
+  while (i < n) {
+    if (e[i] === ".") {
+      i++;
+      if (i >= n) break;                         // trailing '.' — tolerate
+      if (e[i] === ".") {                        // recursive descent: '..'
+        i++;
+        if (i < n && e[i] === "[") {
+          const { step, end } = _jpSubscript(e, i);
+          steps.push({ type: "recursive", inner: step });
+          i = end;
+        } else {
+          const key = _jpIdent(e, i);
+          if (key === null) throw new Error("Expected key or '[' after '..' at position " + i);
+          steps.push({ type: "recursive",
+            inner: key === "*" ? { type: "wildcard" } : { type: "child", key } });
+          i += key.length;
+        }
+      } else if (e[i] === "*") {                 // wildcard: '.*'
+        steps.push({ type: "wildcard" });
+        i++;
+      } else {                                   // named child: '.key'
+        const key = _jpIdent(e, i);
+        if (key === null) throw new Error("Expected key after '.' at position " + i);
+        steps.push({ type: "child", key });
+        i += key.length;
+      }
+    } else if (e[i] === "[") {                   // subscript: '[…]'
+      const { step, end } = _jpSubscript(e, i);
+      steps.push(step);
+      i = end;
+    } else {
+      throw new Error("Unexpected character '" + e[i] + "' at position " + i + ".");
+    }
+  }
+  return steps;
+}
+
+/** Read a bare identifier (object key or '*') at pos. Returns string or null. */
+function _jpIdent(e, pos) {
+  const m = e.slice(pos).match(/^[^.[\](),\s]+/);
+  return m ? m[0] : null;
+}
+
+/** Find the matching ']' for '[' at i, handling nested brackets + quoted strings. */
+function _jpClose(e, i) {
+  let depth = 0, inStr = false, q = "";
+  for (let j = i; j < e.length; j++) {
+    if (inStr) {
+      if (e[j] === "\\") { j++; continue; }
+      if (e[j] === q) inStr = false;
+    } else if (e[j] === "'" || e[j] === '"') { inStr = true; q = e[j]; }
+    else if (e[j] === "[") depth++;
+    else if (e[j] === "]") { if (--depth === 0) return j; }
+  }
+  throw new Error("Unmatched '[' at position " + i + ".");
+}
+
+/** Parse one bracket subscript '[…]'; returns {step, end} where end = index after ']'. */
+function _jpSubscript(e, i) {
+  const close = _jpClose(e, i);
+  const inner = e.slice(i + 1, close).trim();
+  const end   = close + 1;
+
+  // Wildcard: [*]
+  if (inner === "*") return { step: { type: "wildcard" }, end };
+
+  // Filter: [?(expr)]
+  if (inner.startsWith("?(") && inner.endsWith(")")) {
+    return { step: { type: "filter", expr: inner.slice(2, -1).trim() }, end };
+  }
+
+  // Single quoted key: ['key'] or ["key"] (no comma → single key, not union)
+  const quotedSingle = inner.match(/^(['"])((?:[^'"\\]|\\.)*)\1$/);
+  if (quotedSingle) {
+    return { step: { type: "child", key: quotedSingle[2] }, end };
+  }
+
+  // Slice: any form containing ':' that isn't a quoted string
+  // Detect by looking for ':' outside of quotes
+  if (_jpHasColon(inner)) {
+    const parts = inner.split(":").map(s => s.trim());
+    const toN   = s => (s === "" || s === undefined) ? undefined : parseInt(s, 10);
+    return {
+      step: { type: "slice", start: toN(parts[0]), end: toN(parts[1]), step: toN(parts[2]) },
+      end
+    };
+  }
+
+  // Integer index: [0], [-1], [42]
+  if (/^-?\d+$/.test(inner)) {
+    return { step: { type: "index", idx: parseInt(inner, 10) }, end };
+  }
+
+  // Union of quoted keys: ['a','b'] or ["a","b"]
+  if (inner.includes(",")) {
+    const keys = inner.split(",").map(s => {
+      const t = s.trim();
+      const m = t.match(/^(['"])((?:[^'"\\]|\\.)*)\1$/);
+      return m ? m[2] : t;
+    });
+    return { step: { type: "union", keys }, end };
+  }
+
+  // Bare unquoted key: [key]
+  return { step: { type: "child", key: inner }, end };
+}
+
+/** Return true if `s` contains a ':' outside of any quoted string. */
+function _jpHasColon(s) {
+  let inStr = false, q = "";
+  for (let i = 0; i < s.length; i++) {
+    if (inStr) {
+      if (s[i] === "\\" ) { i++; continue; }
+      if (s[i] === q) inStr = false;
+    } else if (s[i] === "'" || s[i] === '"') { inStr = true; q = s[i]; }
+    else if (s[i] === ":") return true;
+  }
+  return false;
+}
+
+// ─── Evaluator ───────────────────────────────────────────────────────────────
+// nodes : { path:(string|number)[], value:any }[]
+// steps : step[]   (steps[0] = {type:'root'})
+// si    : current step index (start at 1 to skip the root step)
+// out   : result array (appended to)
+
+function _jpEval(nodes, steps, si, out) {
+  if (si >= steps.length) { out.push(...nodes); return; }
+  const step = steps[si];
+  const next = [];
+
+  for (const { path, value } of nodes) {
+    switch (step.type) {
+      case "child": {
+        if (value !== null && typeof value === "object" &&
+            !Array.isArray(value) &&
+            Object.prototype.hasOwnProperty.call(value, step.key)) {
+          next.push({ path: path.concat(step.key), value: value[step.key] });
+        }
+        break;
+      }
+      case "wildcard": {
+        if (Array.isArray(value)) {
+          value.forEach((v, k) => next.push({ path: path.concat(k), value: v }));
+        } else if (value !== null && typeof value === "object") {
+          Object.keys(value).forEach(k => next.push({ path: path.concat(k), value: value[k] }));
+        }
+        break;
+      }
+      case "index": {
+        if (Array.isArray(value)) {
+          const k = step.idx < 0 ? value.length + step.idx : step.idx;
+          if (k >= 0 && k < value.length) next.push({ path: path.concat(k), value: value[k] });
+        }
+        break;
+      }
+      case "slice": {
+        if (Array.isArray(value)) {
+          const len = value.length;
+          const stp = step.step !== undefined ? step.step : 1;
+          if (stp === 0) break; // step=0 is an error; skip silently
+          const norm = (v, defVal) => {
+            if (v === undefined) return defVal;
+            const clamped = v < 0 ? len + v : v;
+            return stp > 0
+              ? Math.max(0, Math.min(clamped, len))
+              : Math.max(-1, Math.min(clamped, len - 1));
+          };
+          const s = norm(step.start, stp > 0 ? 0 : len - 1);
+          const e2 = norm(step.end, stp > 0 ? len : -1);
+          if (stp > 0) { for (let k = s; k < e2;  k += stp) next.push({ path: path.concat(k), value: value[k] }); }
+          else          { for (let k = s; k > e2;  k += stp) next.push({ path: path.concat(k), value: value[k] }); }
+        }
+        break;
+      }
+      case "recursive": {
+        _jpRecurse(value, path, step.inner, next);
+        break;
+      }
+      case "filter": {
+        const items = Array.isArray(value)
+          ? value.map((v, k) => ({ path: path.concat(k), value: v }))
+          : (value !== null && typeof value === "object")
+            ? Object.keys(value).map(k => ({ path: path.concat(k), value: value[k] }))
+            : [];
+        for (const item of items) {
+          if (_jpFilter(item.value, step.expr)) next.push(item);
+        }
+        break;
+      }
+      case "union": {
+        if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+          for (const k of step.keys) {
+            if (Object.prototype.hasOwnProperty.call(value, k)) {
+              next.push({ path: path.concat(k), value: value[k] });
+            }
+          }
+        }
+        break;
+      }
+      default: break; // 'root' and unknown — passthrough
+    }
+  }
+  _jpEval(next, steps, si + 1, out);
+}
+
+/**
+ * Collect all nodes (the current node and every descendant) that match
+ * `inner` (one step), and push them into `out`.
+ */
+function _jpRecurse(value, path, inner, out) {
+  if (value === null || typeof value !== "object") return;
+  // Apply inner step at the current level
+  _jpEval([{ path, value }], [inner], 0, out);
+  // Descend into children
+  if (Array.isArray(value)) {
+    value.forEach((v, k) => _jpRecurse(v, path.concat(k), inner, out));
+  } else {
+    Object.keys(value).forEach(k => _jpRecurse(value[k], path.concat(k), inner, out));
+  }
+}
+
+// ─── Filter expression evaluator ─────────────────────────────────────────────
+// Two-char operators must precede single-char versions so indexOf matches correctly.
+
+const _JP_CMP_OPS = ["<=", ">=", "==", "!=", "<", ">"];
+
+function _jpFilter(node, expr) {
+  const e = expr.trim();
+  for (const op of _JP_CMP_OPS) {
+    const idx = e.indexOf(op);
+    if (idx === -1) continue;
+    const lhsStr = e.slice(0, idx).trim();
+    const rhsStr = e.slice(idx + op.length).trim();
+    if (!lhsStr.startsWith("@")) continue; // only handle @-accessor on LHS
+    const lval = _jpAccess(node, lhsStr);
+    const rval = _jpLit(rhsStr);
+    if (lval === undefined || rval === undefined) return false;
+    if (op === "==") return lval === rval;
+    if (op === "!=") return lval !== rval;
+    if (op === "<")  return lval <  rval;
+    if (op === ">")  return lval >  rval;
+    if (op === "<=") return lval <= rval;
+    if (op === ">=") return lval >= rval;
+  }
+  // Existence check: expression is just an accessor (@.key or @['key'])
+  return e.startsWith("@") ? _jpAccess(node, e) !== undefined : false;
+}
+
+/** Navigate an @ accessor path (e.g. @.a.b, @['key'], @.arr[0]) from `node`. */
+function _jpAccess(node, expr) {
+  if (!expr.startsWith("@")) return undefined;
+  let cur = node, i = 1; // skip '@'
+  while (i < expr.length && cur !== undefined && cur !== null) {
+    if (expr[i] === ".") {
+      i++;
+      const m = expr.slice(i).match(/^([^.[\]]+)/);
+      if (!m) break;
+      cur = (cur !== null && typeof cur === "object") ? cur[m[1]] : undefined;
+      i += m[1].length;
+    } else if (expr[i] === "[") {
+      const close = expr.indexOf("]", i);
+      if (close === -1) break;
+      let key = expr.slice(i + 1, close).trim();
+      const q = key.match(/^(['"])((?:[^'"\\]|\\.)*)\1$/);
+      if (q) {
+        cur = (cur !== null && typeof cur === "object") ? cur[q[2]] : undefined;
+      } else if (/^-?\d+$/.test(key)) {
+        const idx = parseInt(key, 10);
+        cur = Array.isArray(cur) ? cur[idx < 0 ? cur.length + idx : idx] : undefined;
+      } else {
+        cur = (cur !== null && typeof cur === "object") ? cur[key] : undefined;
+      }
+      i = close + 1;
+    } else { break; }
+  }
+  return cur;
+}
+
+/** Parse a literal value from a filter RHS: number, 'string', "string", true, false, null. */
+function _jpLit(s) {
+  if (s === "true")  return true;
+  if (s === "false") return false;
+  if (s === "null")  return null;
+  const q = s.match(/^(['"])((?:[^'"\\]|\\.)*)\1$/);
+  if (q) return q[2];
+  const n = Number(s);
+  return Number.isNaN(n) ? undefined : n;
+}
+/* JSONPATH:END */
 
 /* ---- T19: Off-thread diff worker ----------------------------------------
  * The worker is built by extracting the DIFF-CORE block from this page's own
@@ -1585,8 +2623,8 @@ function refreshLineNums(taId) {
   const gutter = _gutterFor(taId);
   const wrap   = ta && ta.closest(".editor-wrap");
   if (!gutter || !wrap || !ta) return;
-  // Respect the 80k-char highlight cutoff — no gutter when highlight is off.
-  if (ta.value.length > MAX_HIGHLIGHT) { wrap.style.removeProperty("--ln-w"); return; }
+  // Respect the 80k-char highlight cutoff (unless the user forces it via E-5 toggle).
+  if (ta.value.length > MAX_HIGHLIGHT && !forceHighlight) { wrap.style.removeProperty("--ln-w"); return; }
   const lines  = (ta.value.match(/\n/g) || []).length + 1;
   const digits = String(lines).length;
   // Dynamic gutter width: room for the digits + padding (char ~7.5px at 12.5px monospace).
@@ -1603,10 +2641,12 @@ function refreshHighlight(taId) {
   const wrap = ta ? ta.closest(".editor-wrap") : null;
   const pre  = document.getElementById(taId === "source" ? "srcHighlight" : taId === "target" ? "tgtHighlight" : "baseHighlight");
   if (!pre || !wrap) return;
-  if (ta.value.length > MAX_HIGHLIGHT) { wrap.classList.add("no-hl"); pre.innerHTML = ""; refreshLineNums(taId); return; }
+  if (ta.value.length > MAX_HIGHLIGHT && !forceHighlight) { wrap.classList.add("no-hl"); pre.innerHTML = ""; refreshLineNums(taId); return; }
   wrap.classList.remove("no-hl");
   pre.innerHTML = tokenizeJSON(ta.value) + "\n";  // trailing \n prevents last-line collapse
   refreshLineNums(taId);
+  // E-1: re-inject find highlights whenever the overlay is rebuilt
+  _findApplyToHighlightPre(taId);
 }
 const _hlTimers = {};
 function scheduleHighlight(taId) {
@@ -1870,9 +2910,10 @@ function _parserByName(name) {
   }
 }
 
-/* ---- T24: Three-way diff — inlined from src/three-way.js ----------------
+/* ---- T24 / F-3: Three-way diff + merge — inlined from src/three-way.js ----
  * threeWayDiff(base,left,right,opts,diffFn) -> ThreeWayChange[]
  * kind ∈ "left-only"|"right-only"|"both-same"|"conflict"
+ * resolveMerge(base,changes,resolutions) -> merged value
  */
 function _tw3deepEq(a,b) {
   if(a===b) return true; if(a===null||b===null) return a===b;
@@ -1897,19 +2938,87 @@ function threeWayDiff(base, left, right, opts, diffFn) {
   result.sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);
   return result;
 }
+// F-3: deep clone + path-setter used by resolveMerge
+function _tw3deepClone(v) {
+  if(v===null||typeof v!=="object") return v;
+  if(Array.isArray(v)) return v.map(_tw3deepClone);
+  return Object.fromEntries(Object.entries(v).map(([k,vv])=>[k,_tw3deepClone(vv)]));
+}
+function _tw3setAtSegs(root,segs,value) {
+  if(!segs||segs.length===0) return;
+  let cur=root;
+  for(let i=0;i<segs.length-1;i++){
+    const s=segs[i];
+    if(s.k!==undefined){if(typeof cur[s.k]!=="object"||cur[s.k]===null) cur[s.k]={};cur=cur[s.k];}
+    else if(s.i!==undefined){if(!Array.isArray(cur)||s.i<0||s.i>=cur.length) return; cur=cur[s.i];}
+    else return;
+  }
+  const last=segs[segs.length-1];
+  if(last.k!==undefined){if(value===undefined) delete cur[last.k]; else cur[last.k]=value;}
+  else if(last.i!==undefined&&Array.isArray(cur)){if(value===undefined) cur.splice(last.i,1); else cur[last.i]=value;}
+}
+// F-3: produce a merged value from threeWayDiff changes + per-conflict resolutions.
+// Auto-merge: left-only→left, right-only→right, both-same→left, conflict→choice||"left"
+function resolveMerge(base, changes, resolutions) {
+  const res=resolutions||new Map();
+  const clone=_tw3deepClone(base);
+  for(const c of changes){
+    const id=JSON.stringify(c.segs);
+    let val;
+    if(c.kind==="left-only") val=c.left;
+    else if(c.kind==="right-only") val=c.right;
+    else if(c.kind==="both-same") val=c.left;
+    else { const ch=res.get(id)||"left"; val=ch==="right"?c.right:ch==="base"?c.base:c.left; }
+    if(!_tw3deepEq(val,c.base)) _tw3setAtSegs(clone,c.segs,val);
+  }
+  return clone;
+}
 
-function renderThreeWay(changes) {
+// F-3: per-session conflict resolutions (segId -> "left"|"right"|"base")
+// and cached last diff for the export handlers.
+let _twResolutions = new Map();
+let _twLastChanges = null;
+let _twLastBase    = null;
+
+function renderThreeWay(changes, resolutions) {
+  const res = resolutions || new Map();
   if(!changes.length) return `<div class="state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><h3>No differences</h3><p>Base, Left, and Right are all identical.</p></div>`;
   const kindLabel = { "left-only":"Left only","right-only":"Right only","both-same":"Both (same)","conflict":"⚡ Conflict" };
-  let html = `<div class="tw-col-headers"><div class="tw-kind">Kind</div><div>Path</div><div>Base</div><div>Left (ours)</div><div>Right (theirs)</div></div>`;
+  const cell = v => v===undefined?'<span style="color:var(--text-3)">—</span>':escapeHtml(fmt(v));
+  // F-3: export action bar
+  let html = `<div class="tw-action-bar">` +
+    `<span class="tw-action-bar-label">Export merged:</span>` +
+    `<button class="btn sm tw-export-merged-dl" title="Download merged JSON as a file">⬇ Download</button>` +
+    `<button class="btn sm tw-export-merged-cp" title="Copy merged JSON to clipboard">⎘ Copy</button>` +
+    `</div>`;
+  // Column headers (6 columns)
+  html += `<div class="tw-col-headers"><div class="tw-kind">Kind</div><div>Path</div><div>Base</div><div>Left (ours)</div><div>Right (theirs)</div><div>Resolution</div></div>`;
   for(const c of changes){
+    const id=JSON.stringify(c.segs);
     const klass="tw-"+c.kind;
+    // Resolution cell: L/B/R buttons for conflicts; auto-tag for others
+    let resCell;
+    if(c.kind==="conflict"){
+      const ch=res.get(id)||"left";
+      resCell=`<div class="tw-res-cell">` +
+        `<button class="tw-res-btn${ch==="left"?" tw-chosen":""}" data-tw-id="${escapeHtml(id)}" data-choice="left" title="Accept Left value">L</button>` +
+        `<button class="tw-res-btn${ch==="base"?" tw-chosen":""}" data-tw-id="${escapeHtml(id)}" data-choice="base" title="Accept Base value">B</button>` +
+        `<button class="tw-res-btn${ch==="right"?" tw-chosen":""}" data-tw-id="${escapeHtml(id)}" data-choice="right" title="Accept Right value">R</button>` +
+        `</div>`;
+    } else if(c.kind==="left-only"){
+      resCell=`<div class="tw-res-cell"><span class="tw-auto-tag">← L</span></div>`;
+    } else if(c.kind==="right-only"){
+      resCell=`<div class="tw-res-cell"><span class="tw-auto-tag">R →</span></div>`;
+    } else {
+      resCell=`<div class="tw-res-cell"><span class="tw-auto-tag">← L=R</span></div>`;
+    }
     html += `<div class="tw-row ${klass}">` +
       `<div class="tw-kind tw-conflict-label">${escapeHtml(kindLabel[c.kind]||c.kind)}</div>` +
       `<div class="tw-cell" style="font-family:var(--mono);font-size:12px">${escapeHtml(c.path)}</div>` +
-      `<div class="tw-cell">${c.base===undefined?'<span style="color:var(--text-3)">—</span>':escapeHtml(fmt(c.base))}</div>` +
-      `<div class="tw-cell">${c.left===undefined?'<span style="color:var(--text-3)">—</span>':escapeHtml(fmt(c.left))}</div>` +
-      `<div class="tw-cell">${c.right===undefined?'<span style="color:var(--text-3)">—</span>':escapeHtml(fmt(c.right))}</div>` +
+      `<div class="tw-cell">${cell(c.base)}</div>` +
+      `<div class="tw-cell">${cell(c.left)}</div>` +
+      `<div class="tw-cell">${cell(c.right)}</div>` +
+      resCell +
       `</div>`;
   }
   return html;
@@ -2172,6 +3281,7 @@ function changeToNode(key, ch, segs) {
   const node = { key, segs, op: ch.op, container: false, hasDiff: ch.op !== "equal", diffCount: ch.op !== "equal" ? 1 : 0, selectable: ch.op !== "equal" };
   node.from = ch.from; node.to = ch.to; node.path = ch.path;
   if (ch.op === "type_changed") { node.fromType = ch.fromType; node.toType = ch.toType; }
+  if (ch.schemaViolation) node.schemaViolation = ch.schemaViolation; // G-3
   return node;
 }
 
@@ -2221,6 +3331,8 @@ function buildTree(changes) {
 /* ---- Raw text view rendering (T13) ---- */
 let rawMode = "split";  // "split" | "unified"
 let splitRatio = null;  // P1-3: Source pane's share of the two-pane width (0.2–0.8); null = 50/50
+let forceHighlight = false;  // E-5: when true, bypass the MAX_HIGHLIGHT cutoff
+let indentSize = "2";   // E-3: "2" | "3" | "4" | "tab" — used by Format + Sort
 
 // P1-5: word-level (intra-line) diff. Given a paired old/new line, returns HTML
 // for each side with the differing token runs wrapped in <mark>. Tokens are runs
@@ -2379,8 +3491,9 @@ function renderTable(rows, onlyDiff) {
   let html = `<div class="col-headers"><div class="selhead"><input type="checkbox" class="cbx" id="selAllTable"></div><div></div><div class="c-path">Path</div><div>Value</div></div>`;
   visible.forEach(r => {
     const sel = r.op !== "equal" ? `<input type="checkbox" class="cbx tsel" data-segs="${escapeHtml(segId(r.segs))}">` : "";
+    const violBadge = r.schemaViolation ? `<span class="badge schema-violation" title="Schema type violation: expected ${escapeHtml(r.schemaViolation.expected)}, got ${escapeHtml(r.schemaViolation.got)}">⚠ type</span>` : "";
     html += `<div class="row ${r.op}"><div class="selcell">${sel}</div><div class="gutter">${gutterSym[r.op]}</div>` +
-      `<div class="cell path"><span class="badge ${r.op}">${badgeLabel[r.op]}</span>${escapeHtml(r.path)}</div>` +
+      `<div class="cell path"><span class="badge ${r.op}">${badgeLabel[r.op]}</span>${violBadge}${escapeHtml(r.path)}</div>` +
       `<div class="cell value">${valHTML(r)}</div>${rowActsHTML(r)}</div>`;
   });
   return html;
@@ -2410,9 +3523,10 @@ function renderTreeNode(node, onlyDiff, depth = 0) {
       `<div class="tchildren" role="group">${kids}</div></div>`;
   }
   const badge = node.hasDiff ? `<span class="badge ${node.op}">${badgeLabel[node.op]}</span>` : "";
+  const violBadge = node.schemaViolation ? `<span class="badge schema-violation" title="Schema type violation: expected ${escapeHtml(node.schemaViolation.expected)}, got ${escapeHtml(node.schemaViolation.got)}">⚠ type</span>` : "";
   return `<div class="tnode ${kc} leaf" role="treeitem" tabindex="-1"><div class="trow">${cbx}<span class="ttoggle" aria-hidden="true"></span>` +
     `<span class="tkey">${escapeHtml(node.key)}</span><span class="tcolon" aria-hidden="true">:</span>` +
-    `<span class="tvalwrap">${valHTML(node)}</span>${badge}${rowActsHTML(node)}</div></div>`;
+    `<span class="tvalwrap">${valHTML(node)}</span>${badge}${violBadge}${rowActsHTML(node)}</div></div>`;
 }
 
 function renderTree(root, onlyDiff) {
@@ -2441,6 +3555,15 @@ function getOpts() {
   const rawTol = document.getElementById("numericTolerance").value.trim();
   const numericTolerance = rawTol !== "" && !isNaN(+rawTol) && +rawTol >= 0 ? +rawTol : undefined;
   const keyBy = document.getElementById("arrayKeyField").value.trim() || undefined;
+  const rawPaths = document.getElementById("ignorePaths").value.trim();
+  const ignorePaths = rawPaths ? rawPaths.split("\n").map(s => s.trim()).filter(Boolean) : undefined;
+  // G-3: read schema for schema-aware diff mode
+  let schema;
+  if (document.getElementById("schemaAware").checked) {
+    const schemaEl = document.getElementById("schemaInput");
+    const st = schemaEl ? schemaEl.value.trim() : "";
+    if (st) { try { schema = JSON.parse(st); } catch (_) {} }
+  }
   return {
     unordered: document.getElementById("unordered").checked,
     onlyDiff:  document.getElementById("onlyDiff").checked,
@@ -2448,6 +3571,8 @@ function getOpts() {
     ignoreKeys,
     numericTolerance,
     keyBy,
+    ignorePaths,
+    schema,
   };
 }
 
@@ -2596,6 +3721,9 @@ function renderView() {
       const base = parser(baseText), left = parser(srcText), right = parser(tgtText);
       const { unordered, keyBy } = getOpts();
       const changes = threeWayDiff(base, left, right, { unordered, keyBy }, diffCore);
+      // F-3: cache for export handlers
+      _twLastChanges = changes;
+      _twLastBase    = base;
       // Summary stats
       const cf=changes.filter(c=>c.kind==="conflict").length;
       const lo=changes.filter(c=>c.kind==="left-only").length;
@@ -2607,7 +3735,7 @@ function renderView() {
           `<span class="tw-stat left-only">${lo} left-only</span>` +
           `<span class="tw-stat right-only">${ro} right-only</span>` +
           (bs ? `<span class="tw-stat both-same">${bs} both-same</span>` : "");
-      resEl.innerHTML = renderThreeWay(changes);
+      resEl.innerHTML = renderThreeWay(changes, _twResolutions);
     } catch(e) {
       resEl.innerHTML = `<div class="state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><h3>Parse error</h3><p>${escapeHtml(e.message)}</p></div>`;
     }
@@ -2663,6 +3791,8 @@ function renderView() {
     navIdx = -1;
   }
   updateNavUI();
+  // E-1: re-apply find highlights after any results re-render
+  if (_find.active && _find.surface === "results") _findApplyToResults();
 }
 
 // T19: shared result handler (called by worker path and sync fallback)
@@ -2725,7 +3855,7 @@ function render() {
     );
   }
 
-  const { unordered, keyBy, ignoreKeys, numericTolerance, ignoreCase } = getOpts();
+  const { unordered, keyBy, ignoreKeys, numericTolerance, ignoreCase, ignorePaths, schema } = getOpts();
 
   // T19: cancel any in-flight worker request, then start a new one
   const worker = _getWorker();
@@ -2786,7 +3916,7 @@ function render() {
       type: "diff", id,
       srcText: srcText || "null",
       tgtText: tgtText || "null",
-      opts: { unordered, keyBy, ignoreKeys, numericTolerance, ignoreCase, inputFormat }
+      opts: { unordered, keyBy, ignoreKeys, numericTolerance, ignoreCase, ignorePaths, inputFormat }
     });
 
     // T21: safety timeout — cancel the worker if it doesn't respond in time
@@ -2815,7 +3945,7 @@ function render() {
     const precLost = [...new Set([...detectPrecisionLoss(srcFull), ...detectPrecisionLoss(tgtFull)])];
     let rows;
     try {
-      rows = diffCore(src, tgt, { unordered, keyBy, ignoreKeys, numericTolerance, ignoreCase });
+      rows = diffCore(src, tgt, { unordered, keyBy, ignoreKeys, numericTolerance, ignoreCase, ignorePaths, schema });
     } catch (e) {
       if (e instanceof DiffDepthError || e.name === "DiffDepthError") return showError("Input too deeply nested", e.message);
       throw e;
@@ -3097,6 +4227,40 @@ document.getElementById("segTable").addEventListener("click", () => setView("tab
 document.getElementById("segRaw").addEventListener("click",   () => setView("raw"));
 document.getElementById("seg3Way").addEventListener("click",  () => setView("3way"));
 
+// F-3: delegated handlers for 3-Way resolution buttons and export merged actions.
+// These live on #results (not on dynamic content) so they survive innerHTML rewrites.
+document.getElementById("results").addEventListener("click", e => {
+  // Conflict resolution button (L / B / R)
+  const btn = e.target.closest(".tw-res-btn");
+  if (btn) {
+    e.stopPropagation();
+    const id = btn.dataset.twId;
+    const choice = btn.dataset.choice;
+    if (id && choice) {
+      _twResolutions.set(id, choice);
+      // Update button highlight states in-place — no full re-render needed
+      const row = btn.closest(".tw-row");
+      if (row) row.querySelectorAll(".tw-res-btn").forEach(b => b.classList.toggle("tw-chosen", b.dataset.choice === choice));
+    }
+    return;
+  }
+  // Export merged — download
+  if (e.target.closest(".tw-export-merged-dl")) {
+    if (!_twLastChanges || _twLastBase === null) { toast("No merge to export yet — run a 3-Way comparison first"); return; }
+    const merged = resolveMerge(_twLastBase, _twLastChanges, _twResolutions);
+    downloadText("merged.json", JSON.stringify(merged, null, getIndent()), "application/json");
+    toast("Merged JSON downloaded");
+    return;
+  }
+  // Export merged — copy
+  if (e.target.closest(".tw-export-merged-cp")) {
+    if (!_twLastChanges || _twLastBase === null) { toast("No merge to export yet — run a 3-Way comparison first"); return; }
+    const merged = resolveMerge(_twLastBase, _twLastChanges, _twResolutions);
+    copyText(JSON.stringify(merged, null, getIndent()));
+    return;
+  }
+});
+
 // tree collapse/expand via delegation (ignore clicks on the checkbox)
 document.getElementById("results").addEventListener("click", e => {
   // copy-path / copy-value row actions (must run before toggle/select logic)
@@ -3312,6 +4476,23 @@ document.getElementById("collapseAll").addEventListener("click", () => {
   }
 });
 
+// E-2: sort-keys helper — recursively alphabetises object keys; arrays untouched.
+// Pure function — mirrored verbatim in tests/format-tools.test.js.
+function sortKeys(val) {
+  if (Array.isArray(val)) return val.map(sortKeys);
+  if (val !== null && typeof val === "object") {
+    return Object.fromEntries(Object.keys(val).sort().map(k => [k, sortKeys(val[k])]));
+  }
+  return val;
+}
+
+// E-3: returns the indent argument for JSON.stringify based on the Options selector.
+// "tab" → actual tab character; "2"/"3"/"4" → that many spaces.
+function getIndent() {
+  const v = (document.getElementById("indentSelect")?.value) ?? indentSize;
+  return v === "tab" ? "\t" : " ".repeat(Number(v) || 2);
+}
+
 document.querySelectorAll(".mini").forEach(btn => {
   btn.addEventListener("click", async () => {
     const ta = document.getElementById(btn.dataset.target);
@@ -3333,8 +4514,14 @@ document.querySelectorAll(".mini").forEach(btn => {
       catch (e) { if (!offerRepair(ta.id, label, lastCompared, () => showError(`Cannot minify ${btn.dataset.target}`, e.message))) showError(`Cannot minify ${btn.dataset.target}`, e.message); }
       return;
     }
-    // format
-    try { ta.value = JSON.stringify(JSON.parse(ta.value), null, 2); updateCounts(); refreshHighlight(ta.id); }
+    // E-2/E-3: sort-keys — recursively alphabetise, format with the chosen indent
+    if (act === "sort") {
+      try { ta.value = JSON.stringify(sortKeys(JSON.parse(ta.value)), null, getIndent()); updateCounts(); refreshHighlight(ta.id); }
+      catch (e) { if (!offerRepair(ta.id, label, lastCompared, () => showError(`Cannot sort ${btn.dataset.target}`, e.message))) showError(`Cannot sort ${btn.dataset.target}`, e.message); }
+      return;
+    }
+    // format (E-3: uses chosen indent)
+    try { ta.value = JSON.stringify(JSON.parse(ta.value), null, getIndent()); updateCounts(); refreshHighlight(ta.id); }
     catch (e) { if (!offerRepair(ta.id, label, lastCompared, () => showError(`Cannot format ${btn.dataset.target}`, e.message))) showError(`Cannot format ${btn.dataset.target}`, e.message); }
   });
 });
@@ -3504,8 +4691,10 @@ document.getElementById("newSessionBtn").addEventListener("click", () => {
  * Inlined from src/url-state.js (no export keyword).
  */
 (function() {
-  const URL_STATE_PARAM = "state";
-  const STATE_VERSION   = 1;
+  const URL_STATE_PARAM      = "state";
+  const STATE_VERSION        = 1;
+  // E-4: warn when encoded fragment exceeds this length (many apps truncate >64 KB URLs)
+  const SHARE_URL_WARN_BYTES = 64 * 1024;
 
   function _b64ToBytes(b64) {
     const bin = atob(b64.replace(/-/g,"+").replace(/_/g,"/"));
@@ -3556,33 +4745,48 @@ document.getElementById("newSessionBtn").addEventListener("click", () => {
     return s;
   }
 
-  // Share URL button — show privacy warning before building URL
-  document.getElementById("shareUrlBtn").addEventListener("click", () => {
+  // Share URL button — E-4: encode first (to know fragment size), then warn.
+  // Privacy notice is always shown; a size warning is appended when the encoded
+  // fragment exceeds SHARE_URL_WARN_BYTES (~64 KB), with a suggestion to use
+  // Save session instead.  The user can still proceed regardless.
+  document.getElementById("shareUrlBtn").addEventListener("click", async () => {
     const srcText = document.getElementById("source").value;
     const tgtText = document.getElementById("target").value;
     if (!srcText && !tgtText) { toast("Nothing to share — paste JSON into both panes first"); return; }
 
-    // Privacy warning dialog (T23)
-    showConfirm(
-      "⚠ Privacy notice: The Share URL will embed both JSON documents verbatim " +
+    // Encode first so we know the fragment size before prompting
+    let encoded;
+    try {
+      const { unordered, onlyDiff, keyBy, ignoreKeys, numericTolerance, ignoreCase, ignorePaths } = getOpts();
+      const inputFormat = document.querySelector('input[name="inputFormat"]:checked')?.value || "json";
+      const state = {
+        src: srcText, tgt: tgtText,
+        opts: { unordered, onlyDiff, viewMode, keyBy, ignoreKeys, numericTolerance, ignoreCase, ignorePaths, inputFormat }
+      };
+      encoded = await _encodeState(state);
+    } catch (e) { showError("Share URL failed", e.message); return; }
+
+    // Build the confirm message: base privacy notice + optional size warning
+    const overLimit = encoded.length > SHARE_URL_WARN_BYTES;
+    const sizeKB    = Math.round(encoded.length / 1024);
+    let msg = "⚠ Privacy notice: The Share URL will embed both JSON documents verbatim " +
       "in the URL fragment. Anyone who receives the URL can read both documents. " +
-      "Do not share URLs containing sensitive data.\n\nContinue?",
-      async (ok) => {
-        if (!ok) return;
-        const { unordered, onlyDiff, keyBy, ignoreKeys, numericTolerance, ignoreCase } = getOpts();
-        const inputFormat = document.querySelector('input[name="inputFormat"]:checked')?.value || "json";
-        const state = {
-          src: srcText, tgt: tgtText,
-          opts: { unordered, onlyDiff, viewMode, keyBy, ignoreKeys, numericTolerance, ignoreCase, inputFormat }
-        };
-        try {
-          const encoded = await _encodeState(state);
-          const url = location.href.replace(/#.*$/, "") + "#" + URL_STATE_PARAM + "=" + encoded;
-          await copyText(url);
-          toast("Share URL copied to clipboard");
-        } catch (e) { showError("Share URL failed", e.message); }
-      }
-    );
+      "Do not share URLs containing sensitive data.";
+    if (overLimit) {
+      msg += "\n\n⚠ This URL is large (~" + sizeKB + " KB encoded). Many chat apps and " +
+        "browsers silently truncate URLs above 64 KB, which would make the link " +
+        "unreadable. Consider using Save session instead.";
+    }
+    msg += "\n\nContinue?";
+
+    showConfirm(msg, async (ok) => {
+      if (!ok) return;
+      try {
+        const url = location.href.replace(/#.*$/, "") + "#" + URL_STATE_PARAM + "=" + encoded;
+        await copyText(url);
+        toast("Share URL copied to clipboard");
+      } catch (e) { showError("Share URL failed", e.message); }
+    });
   });
 
   // On page load: restore state from URL fragment if present
@@ -3607,6 +4811,8 @@ document.getElementById("newSessionBtn").addEventListener("click", () => {
           document.getElementById("numericTolerance").value = o.numericTolerance;
         if (typeof o.keyBy === "string" && o.keyBy)
           document.getElementById("arrayKeyField").value = o.keyBy;
+        if (Array.isArray(o.ignorePaths) && o.ignorePaths.length)
+          document.getElementById("ignorePaths").value = o.ignorePaths.join("\n");
         if (o.viewMode === "table" || o.viewMode === "tree") setView(o.viewMode);
         if (["json","jsonc","json5","ndjson"].includes(o.inputFormat)) {
           const radio = document.querySelector(`input[name="inputFormat"][value="${o.inputFormat}"]`);
@@ -3631,11 +4837,11 @@ function tryParse(txt) { try { return JSON.parse(txt); } catch (e) { return unde
 function saveSession() {
   const srcText = document.getElementById("source").value;
   const tgtText = document.getElementById("target").value;
-  const { unordered, onlyDiff, ignoreCase, ignoreKeys, numericTolerance, keyBy } = getOpts();
+  const { unordered, onlyDiff, ignoreCase, ignoreKeys, numericTolerance, keyBy, ignorePaths } = getOpts();
   const session = {
     _type: "json-compare-session", version: 1,
     createdAt: new Date().toISOString(),
-    options: { unordered, onlyDiff, viewMode, ignoreCase, ignoreKeys, numericTolerance, keyBy },
+    options: { unordered, onlyDiff, viewMode, ignoreCase, ignoreKeys, numericTolerance, keyBy, ignorePaths },
     source: tryParse(srcText) ?? null,
     target: tryParse(tgtText) ?? null,
     sourceText: srcText, targetText: tgtText
@@ -3673,6 +4879,8 @@ function applySession(obj) {
   if (Array.isArray(opts.ignoreKeys))        document.getElementById("ignoreKeys").value    = opts.ignoreKeys.join(", ");
   if (typeof opts.numericTolerance === "number") document.getElementById("numericTolerance").value = opts.numericTolerance;
   if (typeof opts.keyBy === "string")        document.getElementById("arrayKeyField").value = opts.keyBy;
+  if (Array.isArray(opts.ignorePaths) && opts.ignorePaths.length)
+    document.getElementById("ignorePaths").value = opts.ignorePaths.join("\n");
   selected.clear();
   lastCompared = true;
   refreshBothHighlights();  // T15: update syntax highlighting after load
@@ -3980,14 +5188,19 @@ function loadPrefs() {
 }
 function savePrefs() {
   try {
-    const { onlyDiff, unordered, ignoreCase, ignoreKeys, numericTolerance, keyBy } = getOpts();
+    const { onlyDiff, unordered, ignoreCase, ignoreKeys, numericTolerance, keyBy, ignorePaths } = getOpts();
     const theme = document.documentElement.getAttribute("data-theme") || "light";
     const inputFormat = document.querySelector('input[name="inputFormat"]:checked')?.value || "json";
+    const indentVal = document.getElementById("indentSelect")?.value ?? "2";
+    const schemaAware = document.getElementById("schemaAware")?.checked ?? false; // G-3
     localStorage.setItem(PREFS_KEY, JSON.stringify({
       theme, onlyDiff, unordered, viewMode,
-      ignoreCase, ignoreKeys, numericTolerance, keyBy,  // T14
+      ignoreCase, ignoreKeys, numericTolerance, keyBy, ignorePaths,  // T14 + F-4
       inputFormat,  // T22
-      splitRatio    // P1-3
+      splitRatio,   // P1-3
+      indentSize: indentVal,  // E-3
+      forceHighlight,  // E-5
+      schemaAware      // G-3
     }));
   } catch (e) { /* ignore — file:// may block localStorage */ }
 }
@@ -4011,6 +5224,9 @@ function applyTheme(t) {
       document.getElementById("numericTolerance").value = saved.numericTolerance;
     if (typeof saved.keyBy === "string" && saved.keyBy)
       document.getElementById("arrayKeyField").value = saved.keyBy;
+    // F-4: restore ignore-paths
+    if (Array.isArray(saved.ignorePaths) && saved.ignorePaths.length)
+      document.getElementById("ignorePaths").value = saved.ignorePaths.join("\n");
     if (saved.viewMode === "table" || saved.viewMode === "tree") setView(saved.viewMode);
     // P1-3: restore the Source/Target split ratio
     if (typeof saved.splitRatio === "number" && saved.splitRatio >= 0.2 && saved.splitRatio <= 0.8)
@@ -4020,6 +5236,23 @@ function applyTheme(t) {
       const fmtEl = document.getElementById("fmt" + saved.inputFormat.toUpperCase().replace("JSON","JSON").replace("NDJSON","NDJSON"));
       const radio = document.querySelector(`input[name="inputFormat"][value="${saved.inputFormat}"]`);
       if (radio) radio.checked = true;
+    }
+    // E-3: restore indent choice
+    if (["2","3","4","tab"].includes(saved.indentSize)) {
+      indentSize = saved.indentSize;
+      const sel = document.getElementById("indentSelect");
+      if (sel) sel.value = saved.indentSize;
+    }
+    // E-5: restore force-highlight toggle
+    if (typeof saved.forceHighlight === "boolean") {
+      forceHighlight = saved.forceHighlight;
+      const cb = document.getElementById("forceHighlight");
+      if (cb) cb.checked = forceHighlight;
+    }
+    // G-3: restore schema-aware toggle
+    if (typeof saved.schemaAware === "boolean") {
+      const cb = document.getElementById("schemaAware");
+      if (cb) cb.checked = saved.schemaAware;
     }
   } else {
     // No saved prefs: respect OS prefers-color-scheme
@@ -4036,6 +5269,17 @@ document.getElementById("themeBtn").addEventListener("click", () => {
 // Save prefs when options change
 document.getElementById("onlyDiff").addEventListener("change", savePrefs);
 document.getElementById("unordered").addEventListener("change", savePrefs);
+// E-3: persist indent choice whenever the selector changes
+document.getElementById("indentSelect").addEventListener("change", () => {
+  indentSize = document.getElementById("indentSelect").value;
+  savePrefs();
+});
+// E-5: toggle force-highlight and immediately re-apply to all panes
+document.getElementById("forceHighlight").addEventListener("change", e => {
+  forceHighlight = e.target.checked;
+  refreshBothHighlights();
+  savePrefs();
+});
 // T14: options panel toggle
 document.getElementById("optionsBtn").addEventListener("click", () => {
   const panel = document.getElementById("optionsPanel");
@@ -4043,6 +5287,466 @@ document.getElementById("optionsBtn").addEventListener("click", () => {
   panel.classList.toggle("hidden", visible);
   document.getElementById("optionsBtn").classList.toggle("opt-active", !visible);
 });
+
+/* ---- F-1: JSON Schema validation ---------------------------------------- */
+
+// Walk the JSON text token by token to find the char offset of the value
+// addressed by `pointer` (a JSON Pointer string, e.g. "/user/age").
+// Returns {offset, line, col} or null if the path cannot be found.
+function jsonPointerToOffset(text, pointer) {
+  const segs = (pointer === "" || pointer === "/")
+    ? []
+    : pointer.slice(1).split("/").map(s => s.replace(/~1/g, "/").replace(/~0/g, "~"));
+  let pos = 0;
+
+  function ws() { while (pos < text.length && /\s/.test(text[pos])) pos++; }
+
+  function skipString() {
+    pos++; // skip opening "
+    while (pos < text.length) {
+      if (text[pos] === "\\") { pos += 2; continue; }
+      if (text[pos] === '"') { pos++; return; }
+      pos++;
+    }
+  }
+
+  function readStringValue() {
+    let result = "";
+    pos++; // skip opening "
+    while (pos < text.length) {
+      if (text[pos] === "\\") {
+        if (pos + 1 < text.length) {
+          const nc = text[pos + 1];
+          if (nc === '"') result += '"';
+          else if (nc === "\\") result += "\\";
+          else if (nc === "/") result += "/";
+          else if (nc === "n") result += "\n";
+          else if (nc === "r") result += "\r";
+          else if (nc === "t") result += "\t";
+          else if (nc === "b") result += "\b";
+          else if (nc === "f") result += "\f";
+          else if (nc === "u" && pos + 5 < text.length) {
+            result += String.fromCharCode(parseInt(text.slice(pos + 2, pos + 6), 16));
+            pos += 4;
+          } else result += nc;
+          pos += 2;
+        } else pos++;
+        continue;
+      }
+      if (text[pos] === '"') { pos++; return result; }
+      result += text[pos++];
+    }
+    return result;
+  }
+
+  function skipValue() {
+    ws();
+    if (pos >= text.length) return;
+    const c = text[pos];
+    if (c === '"') { skipString(); return; }
+    if (c === "{") { skipObject(); return; }
+    if (c === "[") { skipArray(); return; }
+    while (pos < text.length && !/[,\]}\s]/.test(text[pos])) pos++;
+  }
+
+  function skipObject() {
+    pos++; ws();
+    while (pos < text.length && text[pos] !== "}") {
+      if (text[pos] === ",") { pos++; ws(); continue; }
+      skipString(); ws();
+      if (text[pos] === ":") pos++;
+      ws(); skipValue(); ws();
+    }
+    if (pos < text.length) pos++;
+  }
+
+  function skipArray() {
+    pos++; ws();
+    while (pos < text.length && text[pos] !== "]") {
+      if (text[pos] === ",") { pos++; ws(); continue; }
+      skipValue(); ws();
+    }
+    if (pos < text.length) pos++;
+  }
+
+  function navigate(depth) {
+    ws();
+    if (depth === segs.length) return pos;
+    if (pos >= text.length) return null;
+    const seg = segs[depth];
+    const c = text[pos];
+    if (c === "{") {
+      pos++; ws();
+      while (pos < text.length && text[pos] !== "}") {
+        if (text[pos] === ",") { pos++; ws(); continue; }
+        const key = readStringValue();
+        ws();
+        if (text[pos] === ":") pos++;
+        ws();
+        if (key === seg) return navigate(depth + 1);
+        skipValue(); ws();
+      }
+      return null;
+    }
+    if (c === "[") {
+      const idx = parseInt(seg, 10);
+      if (!Number.isFinite(idx) || idx < 0) return null;
+      pos++; ws();
+      let cur = 0;
+      while (pos < text.length && text[pos] !== "]") {
+        if (cur === idx) return navigate(depth + 1);
+        skipValue(); ws();
+        if (text[pos] === ",") { pos++; ws(); }
+        cur++;
+      }
+      return null;
+    }
+    return null;
+  }
+
+  try {
+    ws();
+    const offset = navigate(0);
+    if (offset === null || offset === undefined) return null;
+    return { offset, ...offsetToLineCol(text, offset) };
+  } catch (_e) { return null; }
+}
+
+// Render Violation[] into a .violation-list container.
+// `target` is the textarea ID ("source", "target") for the Jump button.
+function renderViolations(violations, listEl, target) {
+  listEl.innerHTML = "";
+  violations.forEach(v => {
+    const item = document.createElement("div");
+    item.className = "violation-item";
+    const pathEl = document.createElement("span");
+    pathEl.className = "violation-path";
+    pathEl.textContent = v.path === "" ? "(root)" : v.path;
+    const msgEl = document.createElement("span");
+    msgEl.className = "violation-msg";
+    msgEl.textContent = v.message;
+    const jmpBtn = document.createElement("button");
+    jmpBtn.type = "button";
+    jmpBtn.className = "violation-jump";
+    jmpBtn.textContent = "Jump";
+    jmpBtn.title = "Jump to this location in the pane";
+    jmpBtn.addEventListener("click", () => {
+      const text = document.getElementById(target).value;
+      const loc = jsonPointerToOffset(text, v.path);
+      if (loc) jumpToError(target, loc.offset, loc.line);
+      else jumpToError(target, 0, 1); // fallback: top of pane
+    });
+    item.appendChild(pathEl);
+    item.appendChild(msgEl);
+    item.appendChild(jmpBtn);
+    listEl.appendChild(item);
+  });
+}
+
+// Parse the schema textarea and validate one pane.
+// Returns true on success, false if schema is invalid JSON.
+function _runValidation(target, statusEl, listEl) {
+  const schemaText = document.getElementById("schemaInput").value.trim();
+  if (!schemaText) { showError("Schema is empty", "Paste or upload a JSON Schema first."); return false; }
+  let schema;
+  try { schema = JSON.parse(schemaText); }
+  catch (e) { showError("Invalid schema JSON", e.message); return false; }
+
+  const dataText = document.getElementById(target).value;
+  let data;
+  try { data = JSON.parse(dataText || "null"); }
+  catch (e) { statusEl.className = "schema-invalid"; statusEl.textContent = "Parse error"; return true; }
+
+  const violations = validateSchema(schema, data);
+  if (violations.length === 0) {
+    statusEl.className = "schema-valid";
+    statusEl.textContent = "✓ Valid";
+    listEl.innerHTML = "";
+  } else {
+    statusEl.className = "schema-invalid";
+    statusEl.textContent = violations.length + " violation" + (violations.length === 1 ? "" : "s");
+    renderViolations(violations, listEl, target);
+  }
+  return true;
+}
+
+// F-1: schema panel toggle
+document.getElementById("schemaBtn").addEventListener("click", () => {
+  const panel = document.getElementById("schemaPanel");
+  const visible = !panel.classList.contains("hidden");
+  panel.classList.toggle("hidden", visible);
+  document.getElementById("schemaBtn").classList.toggle("opt-active", !visible);
+});
+
+// Schema file upload
+document.getElementById("schemaUploadBtn").addEventListener("click", () => {
+  document.getElementById("schemaFile").click();
+});
+document.getElementById("schemaFile").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById("schemaInput").value = ev.target.result;
+    document.getElementById("schemaResults").classList.add("hidden");
+  };
+  reader.readAsText(f);
+  e.target.value = "";
+});
+
+// Schema format (pretty-print)
+document.getElementById("schemaFormatBtn").addEventListener("click", () => {
+  const ta = document.getElementById("schemaInput");
+  try {
+    ta.value = JSON.stringify(JSON.parse(ta.value), null, 2);
+  } catch (_e) { /* noop — leave as-is if invalid */ }
+});
+
+// Schema clear
+document.getElementById("schemaClearBtn").addEventListener("click", () => {
+  document.getElementById("schemaInput").value = "";
+  document.getElementById("schemaResults").classList.add("hidden");
+  ["schemaSrcStatus", "schemaTgtStatus"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.className = ""; el.textContent = ""; }
+  });
+  ["srcViolations", "tgtViolations"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = "";
+  });
+  document.getElementById("schemaBtn").classList.remove("opt-active");
+});
+
+// Validate Source only
+document.getElementById("validateSrcBtn").addEventListener("click", () => {
+  const ok = _runValidation("source", document.getElementById("schemaSrcStatus"), document.getElementById("srcViolations"));
+  if (ok) {
+    document.getElementById("schemaTgtStatus").className = "";
+    document.getElementById("schemaTgtStatus").textContent = "";
+    document.getElementById("tgtViolations").innerHTML = "";
+    document.getElementById("schemaResults").classList.remove("hidden");
+    document.getElementById("schemaResultTgt").style.display = "none";
+    document.getElementById("schemaResultSrc").style.display = "";
+  }
+});
+
+// Validate Target only
+document.getElementById("validateTgtBtn").addEventListener("click", () => {
+  const ok = _runValidation("target", document.getElementById("schemaTgtStatus"), document.getElementById("tgtViolations"));
+  if (ok) {
+    document.getElementById("schemaSrcStatus").className = "";
+    document.getElementById("schemaSrcStatus").textContent = "";
+    document.getElementById("srcViolations").innerHTML = "";
+    document.getElementById("schemaResults").classList.remove("hidden");
+    document.getElementById("schemaResultSrc").style.display = "none";
+    document.getElementById("schemaResultTgt").style.display = "";
+  }
+});
+
+// Validate both panes
+document.getElementById("validateBothBtn").addEventListener("click", () => {
+  const srcOk = _runValidation("source", document.getElementById("schemaSrcStatus"), document.getElementById("srcViolations"));
+  if (!srcOk) return;
+  _runValidation("target", document.getElementById("schemaTgtStatus"), document.getElementById("tgtViolations"));
+  document.getElementById("schemaResults").classList.remove("hidden");
+  document.getElementById("schemaResultSrc").style.display = "";
+  document.getElementById("schemaResultTgt").style.display = "";
+});
+
+/* ---- end F-1 ---- */
+
+/* ---- F-2: JSONPath query bar -------------------------------------------
+ * Per-pane query bar that evaluates JSONPath expressions against the pane's
+ * raw JSON. Reuses jsonPointerToOffset (F-1) + jumpToError for navigation.
+ * Evaluator: jsonpathQuery() — inlined between JSONPATH:START/END above.
+ * -------------------------------------------------------------------------
+ */
+
+/** Convert a JSONPath result path to a JSON Pointer string for navigation. */
+function _jpPathToPointer(path) {
+  if (path.length === 0) return "";
+  return "/" + path.map(s => String(s).replace(/~/g, "~0").replace(/\//g, "~1")).join("/");
+}
+
+/** Short human-readable preview of a matched value. */
+function _jpPreview(v) {
+  if (v === null)                   return "null";
+  if (v === undefined)              return "undefined";
+  if (typeof v === "boolean")       return String(v);
+  if (typeof v === "number")        return String(v);
+  if (typeof v === "string") {
+    const s = JSON.stringify(v);
+    return s.length > 60 ? s.slice(0, 59) + "…\"" : s;
+  }
+  if (Array.isArray(v))             return "[… " + v.length + " items]";
+  if (typeof v === "object") {
+    const n = Object.keys(v).length;
+    return "{… " + n + " key" + (n !== 1 ? "s" : "") + "}";
+  }
+  return String(v);
+}
+
+/** Convert a JSONPath result path to display string like $.a.b[0].c */
+function _jpDisplayPath(path) {
+  return "$" + path.map(s =>
+    typeof s === "number"
+      ? "[" + s + "]"
+      : /^[A-Za-z_$][\w$]*$/.test(String(s))
+        ? "." + s
+        : "['" + String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "']"
+  ).join("");
+}
+
+const _JP_PANES = {
+  source: { barId: "srcJPBar",  exprId: "srcJPExpr",  runId: "srcJPRun",  closeId: "srcJPClose",  statusId: "srcJPStatus",  listId: "srcJPList",  qBtnId: "srcQueryBtn",  taId: "source" },
+  target: { barId: "tgtJPBar",  exprId: "tgtJPExpr",  runId: "tgtJPRun",  closeId: "tgtJPClose",  statusId: "tgtJPStatus",  listId: "tgtJPList",  qBtnId: "tgtQueryBtn",  taId: "target" },
+  base:   { barId: "baseJPBar", exprId: "baseJPExpr", runId: "baseJPRun", closeId: "baseJPClose", statusId: "baseJPStatus", listId: "baseJPList", qBtnId: "baseQueryBtn", taId: "base"   },
+};
+
+function _jpToggle(pane) {
+  const ids = _JP_PANES[pane]; if (!ids) return;
+  const bar = document.getElementById(ids.barId); if (!bar) return;
+  const willShow = bar.classList.contains("hidden");
+  bar.classList.toggle("hidden", !willShow);
+  if (willShow) {
+    const inp = document.getElementById(ids.exprId);
+    if (inp) { inp.focus(); inp.select(); }
+  }
+}
+
+function _jpRunQuery(pane) {
+  const ids = _JP_PANES[pane]; if (!ids) return;
+  const exprEl   = document.getElementById(ids.exprId);
+  const statusEl = document.getElementById(ids.statusId);
+  const listEl   = document.getElementById(ids.listId);
+  const ta       = document.getElementById(ids.taId);
+  if (!exprEl || !statusEl || !listEl || !ta) return;
+
+  const expr = exprEl.value.trim();
+
+  // Reset result areas
+  statusEl.className = "jp-status hidden";
+  statusEl.textContent = "";
+  listEl.className = "jp-matches hidden";
+  listEl.innerHTML = "";
+  listEl._jpResults = null;
+
+  if (!expr) return;
+
+  // Parse raw JSON using the currently selected input format
+  const parser = _getParser(); // T22: null = strict JSON
+  let parsed;
+  try {
+    parsed = parser ? parser(ta.value || "null") : JSON.parse(ta.value || "null");
+  } catch (_e) {
+    statusEl.className = "jp-status jp-error";
+    statusEl.textContent = "⚠ Pane JSON is invalid — fix parse errors before querying.";
+    statusEl.classList.remove("hidden");
+    return;
+  }
+
+  // Evaluate the JSONPath expression
+  let matches;
+  try {
+    matches = jsonpathQuery(parsed, expr);
+  } catch (e) {
+    statusEl.className = "jp-status jp-error";
+    statusEl.textContent = "⚠ " + e.message;
+    statusEl.classList.remove("hidden");
+    return;
+  }
+
+  // Render count
+  statusEl.className = "jp-status jp-count";
+  statusEl.textContent = matches.length === 0
+    ? "No matches."
+    : matches.length + " match" + (matches.length !== 1 ? "es" : "") + " — click to navigate";
+  statusEl.classList.remove("hidden");
+
+  if (matches.length === 0) return;
+
+  // Build match list (cap at 500 to avoid DOM bloat)
+  const MAX_RESULTS = 500;
+  listEl._jpResults = matches;
+  const frag = document.createDocumentFragment();
+  const toShow = matches.slice(0, MAX_RESULTS);
+  toShow.forEach((m, idx) => {
+    const li = document.createElement("li");
+    li.className = "jp-match";
+    li.dataset.pane = pane;
+    li.dataset.idx  = String(idx);
+    li.title = _jpDisplayPath(m.path) + "\n= " + _jpPreview(m.value);
+
+    const pathSpan = document.createElement("span");
+    pathSpan.className = "jp-match-path";
+    pathSpan.textContent = _jpDisplayPath(m.path);
+
+    const valSpan = document.createElement("span");
+    valSpan.className = "jp-match-val";
+    valSpan.textContent = _jpPreview(m.value);
+
+    li.appendChild(pathSpan);
+    li.appendChild(valSpan);
+    frag.appendChild(li);
+  });
+  if (matches.length > MAX_RESULTS) {
+    const more = document.createElement("li");
+    more.className = "jp-more";
+    more.textContent = "… " + (matches.length - MAX_RESULTS) + " more (narrow your expression)";
+    frag.appendChild(more);
+  }
+  listEl.appendChild(frag);
+  listEl.className = "jp-matches"; // make visible
+
+  // Delegated click handler for match navigation
+  listEl.addEventListener("click", function onJPMatchClick(e) {
+    const li = e.target.closest(".jp-match[data-pane]");
+    if (!li) return;
+    const p    = li.dataset.pane;
+    const i    = parseInt(li.dataset.idx, 10);
+    const res  = listEl._jpResults;
+    if (!res || !res[i]) return;
+    const ids2 = _JP_PANES[p]; if (!ids2) return;
+    const taEl = document.getElementById(ids2.taId);
+    if (!taEl) return;
+    const pointer = _jpPathToPointer(res[i].path);
+    const loc = jsonPointerToOffset(taEl.value, pointer);
+    if (loc) jumpToError(ids2.taId, loc.offset, loc.line);
+    else     jumpToError(ids2.taId, 0, 1); // fallback: top of pane
+  });
+}
+
+function _jpHideBar(pane) {
+  const ids = _JP_PANES[pane]; if (!ids) return;
+  const bar    = document.getElementById(ids.barId);
+  const exprEl = document.getElementById(ids.exprId);
+  const status = document.getElementById(ids.statusId);
+  const list   = document.getElementById(ids.listId);
+  if (bar)    bar.classList.add("hidden");
+  if (exprEl) exprEl.value = "";
+  if (status) { status.className = "jp-status hidden"; status.textContent = ""; }
+  if (list)   { list.className = "jp-matches hidden"; list.innerHTML = ""; list._jpResults = null; }
+}
+
+// Wire up all three panes
+(function _jpWire() {
+  Object.entries(_JP_PANES).forEach(([pane, ids]) => {
+    const qBtn  = document.getElementById(ids.qBtnId);
+    const runEl = document.getElementById(ids.runId);
+    const clEl  = document.getElementById(ids.closeId);
+    const expEl = document.getElementById(ids.exprId);
+    if (qBtn)  qBtn.addEventListener("click",  () => _jpToggle(pane));
+    if (runEl) runEl.addEventListener("click",  () => _jpRunQuery(pane));
+    if (clEl)  clEl.addEventListener("click",   () => _jpHideBar(pane));
+    if (expEl) expEl.addEventListener("keydown", e => {
+      if (e.key === "Enter")  { e.preventDefault(); _jpRunQuery(pane); }
+      if (e.key === "Escape") { e.stopPropagation(); _jpHideBar(pane); }
+    });
+  });
+})();
+
+/* ---- end F-2 ---- */
+
 // Re-diff when options change
 ["ignoreCase"].forEach(id => {
   document.getElementById(id).addEventListener("change", () => { if (lastCompared) { selected.clear(); render(); } savePrefs(); });
@@ -4058,6 +5762,8 @@ document.querySelectorAll('input[name="inputFormat"]').forEach(radio => {
 ["ignoreKeys", "numericTolerance", "arrayKeyField"].forEach(id => {
   document.getElementById(id).addEventListener("input", () => { if (lastCompared) { selected.clear(); render(); } savePrefs(); });
 });
+// F-4: re-diff when ignore-paths textarea changes
+document.getElementById("ignorePaths").addEventListener("input", () => { if (lastCompared) { selected.clear(); render(); } savePrefs(); });
 
 // T11: filter bar wiring
 ["filterPath", "filterValue"].forEach(id => {
@@ -4136,9 +5842,366 @@ function closeHelpModal() { closeWithTrap("helpModal"); }
   if (closeBtn) closeBtn.addEventListener("click", closeHelpModal);
   if (overlay)  overlay.addEventListener("click",  e => { if (e.target === overlay) closeHelpModal(); });
 })();
+/* ============================================================
+   E-1: Find-in-document (Ctrl/Cmd+F)
+   ============================================================
+   Pure helper — exported to tests/find.test.js verbatim.
+   Returns an array of {start, end} pairs for every non-overlapping
+   occurrence of `query` in `text` (advance by 1 so overlapping
+   starts are also found, e.g. "aa" in "aaa" → [{0,2},{1,3}]).
+*/
+function findMatchOffsets(text, query, caseSensitive) {
+  if (!query) return [];
+  const src = caseSensitive ? text  : text.toLowerCase();
+  const q   = caseSensitive ? query : query.toLowerCase();
+  const res = [];
+  let i = 0;
+  while (i <= src.length - q.length) {
+    const idx = src.indexOf(q, i);
+    if (idx === -1) break;
+    res.push({ start: idx, end: idx + q.length });
+    i = idx + 1;
+  }
+  return res;
+}
+
+// Mutable find state (all mutation goes through findOpen/Close/Search/Step).
+const _find = {
+  active:        false,
+  query:         "",
+  caseSensitive: false,
+  // surface: which area is being searched.
+  // "source"|"target"|"base" → input textarea; "results" → #results.
+  surface:       "source",
+  // offsets: character-level match positions in the textarea (input panes only).
+  offsets:       [],
+  // marks: DOM <mark> elements in the highlight pre (input panes) or #results.
+  marks:         [],
+  currentIdx:    -1,
+  // noHl: true when the active textarea is in no-hl (>80 k) mode — we can still
+  // scroll to match positions but cannot show marks in the overlay.
+  noHl:          false,
+};
+
+// Track which surface was last interacted with so we know where to search.
+["source", "target", "base"].forEach(taId => {
+  const el = document.getElementById(taId);
+  if (!el) return;
+  el.addEventListener("focusin", () => {
+    if (_find.surface === taId) return;
+    _find.surface = taId;
+    if (_find.active && _find.query) { _findClearAll(); findSearch(); }
+  });
+});
+(function() {
+  const res = document.getElementById("results");
+  if (!res) return;
+  res.addEventListener("mousedown", () => {
+    if (_find.surface === "results") return;
+    _find.surface = "results";
+    if (_find.active && _find.query) { _findClearAll(); findSearch(); }
+  });
+})();
+
+// ---- Public API ----
+
+function findOpen() {
+  const bar = document.getElementById("findBar");
+  if (!bar) return;
+  // Smart default: if results are visible and focus is not in a textarea,
+  // search the results pane; otherwise search the focused/last textarea.
+  const rw        = document.getElementById("resultsWrap");
+  const activeTag = document.activeElement ? document.activeElement.tagName : "";
+  if (rw && !rw.classList.contains("hidden") && activeTag !== "TEXTAREA") {
+    _find.surface = "results";
+  }
+  _find.active = true;
+  bar.classList.remove("hidden");
+  const inp = document.getElementById("findInput");
+  inp.select();
+  inp.focus();
+  if (_find.query) findSearch();  // re-run if query still present from last open
+}
+
+function findClose() {
+  const bar = document.getElementById("findBar");
+  if (bar) bar.classList.add("hidden");
+  _find.active = false;
+  _find.query  = "";
+  _find.marks  = [];
+  _find.offsets = [];
+  _find.currentIdx = -1;
+  _find.noHl = false;
+  const inp = document.getElementById("findInput");
+  if (inp) inp.value = "";
+  const ctr = document.getElementById("findCounter");
+  if (ctr) ctr.textContent = "";
+  _findClearAll();
+}
+
+// Remove all <mark> elements injected by the find system.
+function _findClearAll() {
+  // Input panes: re-render the highlight overlay without marks.
+  // Temporarily suppress _findApplyToHighlightPre by zeroing the query so it
+  // won't re-inject marks. We restore active state after.
+  const wasActive = _find.active;
+  const wasQuery  = _find.query;
+  _find.active = false;
+  ["source", "target", "base"].forEach(id => {
+    const ta = document.getElementById(id);
+    if (!ta) return;
+    const wrap = ta.closest(".editor-wrap");
+    if (wrap && !wrap.classList.contains("no-hl")) refreshHighlight(id);
+  });
+  _find.active = wasActive;
+  _find.query  = wasQuery;
+  // Results pane: unwrap existing marks in-place (preserves surrounding DOM).
+  const results = document.getElementById("results");
+  if (results) {
+    results.querySelectorAll("mark.find-hl, mark.find-hl-cur").forEach(m => {
+      if (m.parentNode) {
+        m.parentNode.replaceChild(document.createTextNode(m.textContent), m);
+      }
+    });
+    results.normalize();
+  }
+  _find.marks = [];
+}
+
+// Main search entry point. Reads query + caseSensitive from _find state.
+function findSearch() {
+  if (!_find.active) return;
+  const q = _find.query;
+  _find.currentIdx = -1;
+  _find.marks  = [];
+  _find.offsets = [];
+
+  const ctrEl = document.getElementById("findCounter");
+  const inpEl = document.getElementById("findInput");
+
+  if (!q) {
+    _findClearAll();
+    if (ctrEl) ctrEl.textContent = "";
+    if (inpEl) inpEl.classList.remove("find-no-match");
+    return;
+  }
+
+  const sfc = _find.surface;
+  if (sfc === "source" || sfc === "target" || sfc === "base") {
+    const ta   = document.getElementById(sfc);
+    if (!ta) return;
+    const wrap = ta.closest(".editor-wrap");
+    const isNoHl = wrap && wrap.classList.contains("no-hl");
+    _find.noHl   = !!isNoHl;
+
+    // Compute character offsets (used for scrolling regardless of hl mode).
+    const offsets = findMatchOffsets(ta.value, q, _find.caseSensitive);
+    _find.offsets = offsets;
+    _find.currentIdx = offsets.length > 0 ? 0 : -1;
+
+    if (isNoHl) {
+      // Large input: can't show marks in the overlay — just scroll.
+      if (offsets.length > 0) _findScrollTextareaToChar(ta, offsets[0].start);
+    } else {
+      // Rebuild the highlight overlay; _findApplyToHighlightPre will inject marks.
+      refreshHighlight(sfc);
+    }
+    _findUpdateCounter(offsets.length);
+    if (inpEl) inpEl.classList.toggle("find-no-match", offsets.length === 0 && q.length > 0);
+  } else {
+    _find.noHl = false;
+    _findApplyToResults();
+    if (inpEl) inpEl.classList.toggle("find-no-match", _find.marks.length === 0 && q.length > 0);
+  }
+}
+
+// Called from refreshHighlight — injects marks into the editor-highlight pre.
+function _findApplyToHighlightPre(taId) {
+  if (!_find.active || _find.surface !== taId || !_find.query) return;
+  const preId = taId === "source" ? "srcHighlight" : taId === "target" ? "tgtHighlight" : "baseHighlight";
+  const pre = document.getElementById(preId);
+  if (!pre) return;
+
+  // Offsets may already be computed by findSearch; if the call comes from a
+  // content-change highlight refresh, recompute them.
+  const ta = document.getElementById(taId);
+  if (!ta) return;
+  const offsets = findMatchOffsets(ta.value, _find.query, _find.caseSensitive);
+  _find.offsets = offsets;
+  if (_find.currentIdx < 0 && offsets.length > 0) _find.currentIdx = 0;
+  if (_find.currentIdx >= offsets.length) _find.currentIdx = offsets.length > 0 ? 0 : -1;
+
+  if (!offsets.length) { _find.marks = []; _findUpdateCounter(0); return; }
+
+  _find.marks = _findWrapNodes(pre, _find.query, _find.caseSensitive, _find.currentIdx);
+  _findUpdateCounter(offsets.length);
+  // Scroll textarea to current match position.
+  if (_find.currentIdx >= 0 && offsets[_find.currentIdx]) {
+    _findScrollTextareaToChar(ta, offsets[_find.currentIdx].start);
+  }
+  // Update no-match indicator
+  const inpEl = document.getElementById("findInput");
+  if (inpEl) inpEl.classList.toggle("find-no-match", offsets.length === 0);
+}
+
+// Apply find highlights to #results after a render.
+function _findApplyToResults() {
+  if (!_find.active || _find.surface !== "results" || !_find.query) return;
+  const results = document.getElementById("results");
+  if (!results) return;
+
+  // Clear any stale marks first.
+  results.querySelectorAll("mark.find-hl, mark.find-hl-cur").forEach(m => {
+    if (m.parentNode) m.parentNode.replaceChild(document.createTextNode(m.textContent), m);
+  });
+  results.normalize();
+
+  const marks = _findWrapNodes(results, _find.query, _find.caseSensitive, 0);
+  _find.marks = marks;
+  _find.currentIdx = marks.length > 0 ? 0 : -1;
+  if (marks.length > 0) marks[0].scrollIntoView({ behavior: "smooth", block: "center" });
+  _findUpdateCounter(marks.length);
+  const inpEl = document.getElementById("findInput");
+  if (inpEl) inpEl.classList.toggle("find-no-match", marks.length === 0 && _find.query.length > 0);
+}
+
+// Walk text nodes in `container` and wrap all occurrences of `query` in <mark>.
+// The match at index `currentGlobal` gets class "find-hl-cur"; all others "find-hl".
+// Returns the array of <mark> elements created.
+function _findWrapNodes(container, query, caseSensitive, currentGlobal) {
+  const tw = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  let node;
+  while ((node = tw.nextNode())) nodes.push(node);
+
+  const q   = caseSensitive ? query : query.toLowerCase();
+  const marks = [];
+
+  for (const textNode of nodes) {
+    const raw = textNode.textContent;
+    const src = caseSensitive ? raw : raw.toLowerCase();
+    if (!src.includes(q)) continue;
+
+    const frag = document.createDocumentFragment();
+    let i = 0;
+    while (i < raw.length) {
+      const idx = src.indexOf(q, i);
+      if (idx === -1) { frag.appendChild(document.createTextNode(raw.slice(i))); break; }
+      if (idx > i) frag.appendChild(document.createTextNode(raw.slice(i, idx)));
+      const mark = document.createElement("mark");
+      const globalIdx = marks.length;
+      mark.className = globalIdx === currentGlobal ? "find-hl-cur" : "find-hl";
+      mark.dataset.fidx = globalIdx;
+      mark.textContent = raw.slice(idx, idx + query.length);
+      frag.appendChild(mark);
+      marks.push(mark);
+      i = idx + query.length;
+    }
+    if (textNode.parentNode) textNode.parentNode.replaceChild(frag, textNode);
+  }
+  return marks;
+}
+
+// Step to next (+1) or previous (-1) match.
+function findStep(delta) {
+  const total = _find.surface === "results" ? _find.marks.length : _find.offsets.length;
+  if (!total) return;
+  const next = delta > 0
+    ? (_find.currentIdx < 0 ? 0 : (_find.currentIdx + 1) % total)
+    : (_find.currentIdx < 0 ? total - 1 : (_find.currentIdx - 1 + total) % total);
+
+  const prev = _find.currentIdx;
+  _find.currentIdx = next;
+
+  if (_find.surface === "results") {
+    // Update mark classes in-place (no re-render needed).
+    const prevMark = _find.marks[prev];
+    if (prevMark) prevMark.className = "find-hl";
+    const curMark = _find.marks[next];
+    if (curMark) {
+      curMark.className = "find-hl-cur";
+      curMark.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  } else if (_find.noHl) {
+    // Large input: scroll textarea to char offset.
+    const ta = document.getElementById(_find.surface);
+    if (ta && _find.offsets[next]) _findScrollTextareaToChar(ta, _find.offsets[next].start);
+  } else {
+    // Normal input: update mark classes in the highlight pre.
+    const prevMark = _find.marks[prev];
+    if (prevMark) prevMark.className = "find-hl";
+    const curMark = _find.marks[next];
+    if (curMark) {
+      curMark.className = "find-hl-cur";
+      const ta = document.getElementById(_find.surface);
+      if (ta && _find.offsets[next]) _findScrollTextareaToChar(ta, _find.offsets[next].start);
+    }
+  }
+  _findUpdateCounter(total);
+}
+
+// Estimate textarea.scrollTop needed to centre line `charOffset` is on.
+function _findScrollTextareaToChar(ta, charOffset) {
+  const before  = ta.value.substring(0, charOffset);
+  const lineIdx = (before.match(/\n/g) || []).length;
+  const lineH   = 12.5 * 1.65;  // font-size * line-height (CSS)
+  const padTop  = 14;            // textarea padding-top (CSS)
+  ta.scrollTop  = Math.max(0, padTop + lineIdx * lineH - ta.clientHeight / 2);
+}
+
+function _findUpdateCounter(total) {
+  const ctr = document.getElementById("findCounter");
+  if (!ctr) return;
+  if (!_find.query) { ctr.textContent = ""; return; }
+  ctr.textContent = total === 0 ? "No results" : (_find.currentIdx + 1) + " / " + total;
+}
+
+// ---- Find bar event wiring ----
+(function() {
+  const bar      = document.getElementById("findBar");
+  if (!bar) return;
+  const inp      = document.getElementById("findInput");
+  const caseBtn  = document.getElementById("findCaseBtn");
+  const prevBtn  = document.getElementById("findPrevBtn");
+  const nextBtn  = document.getElementById("findNextBtn");
+  const closeBtn = document.getElementById("findCloseBtn");
+
+  inp.addEventListener("input", () => {
+    _find.query = inp.value;
+    findSearch();
+  });
+  inp.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); findStep(1); }
+    if (e.key === "Enter" &&  e.shiftKey) { e.preventDefault(); findStep(-1); }
+    if (e.key === "Escape") { e.preventDefault(); findClose(); }
+  });
+  caseBtn.addEventListener("click", () => {
+    _find.caseSensitive = !_find.caseSensitive;
+    caseBtn.classList.toggle("active", _find.caseSensitive);
+    caseBtn.setAttribute("aria-pressed", String(_find.caseSensitive));
+    _findClearAll();
+    findSearch();
+  });
+  prevBtn.addEventListener("click",  () => findStep(-1));
+  nextBtn.addEventListener("click",  () => findStep(1));
+  closeBtn.addEventListener("click", () => findClose());
+})();
+
 document.addEventListener("keydown", e => {
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { lastCompared = true; selected.clear(); render(); }
-  if (e.key === "Escape") { closeModal(); closeDrawer(); closeSaveModal(); closeHelpModal(); toggleShortcuts(false); }
+  // E-1: Ctrl/Cmd+F — open in-app find bar (suppress browser find).
+  if ((e.metaKey || e.ctrlKey) && e.key === "f") {
+    // Don't intercept if a modal is open (user might be finding text in a dialog).
+    const modalOpen = !document.getElementById("modal").classList.contains("hidden") ||
+                      !document.getElementById("saveModal").classList.contains("hidden") ||
+                      !document.getElementById("helpModal").classList.contains("hidden");
+    if (!modalOpen) { e.preventDefault(); findOpen(); return; }
+  }
+  if (e.key === "Escape") {
+    // E-1: close find bar first (before closing other overlays).
+    if (_find.active) { findClose(); return; }
+    closeModal(); closeDrawer(); closeSaveModal(); closeHelpModal(); toggleShortcuts(false);
+  }
   // "?" opens the shortcuts help (when not typing in a field)
   if (e.key === "?" ) {
     const tag = document.activeElement ? document.activeElement.tagName : "";

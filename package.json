@@ -1,9 +1,37 @@
 {
   "name": "json-comparator",
   "version": "0.1.0",
-  "private": true,
-  "description": "Zero-dependency JSON comparator. This package.json provides the dev toolchain (tests + lint) only; the web app stays a single HTML file openable via file:// with no build step.",
+  "description": "Zero-dependency JSON diff engine — compare two JSON documents and get structured Change[], RFC 6902 patches, and a CLI. Powers the json-comparator web app.",
   "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "main": "./src/index.js",
+  "bin": {
+    "json-diff": "./bin/json-diff.js"
+  },
+  "files": [
+    "src/diff-core.js",
+    "src/json-patch.js",
+    "src/markdown-reporter.js",
+    "src/index.js",
+    "bin/json-diff.js",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "json",
+    "diff",
+    "compare",
+    "patch",
+    "json-patch",
+    "rfc6902",
+    "json-pointer"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
