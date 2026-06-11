@@ -10,3 +10,5 @@ __pycache__/
 .verify/
 *.BACKUP.html
 extracted_script.js
+_chk*.js
+*.removed
