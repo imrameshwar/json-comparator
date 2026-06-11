@@ -3,6 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%226%22%20fill%3D%22%233b6ef5%22%2F%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22M9%207H8a2.5%202.5%200%200%200-2.5%202.5v2.5A2.5%202.5%200%200%201%203%2014.5a2.5%202.5%200%200%201%202.5%202.5v2.5A2.5%202.5%200%200%200%208%2022h1%22%2F%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%222.4%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22M23%207h1a2.5%202.5%200%200%201%202.5%202.5v2.5a2.5%202.5%200%200%200%202.5%202.5%202.5%202.5%200%200%200-2.5%202.5v2.5A2.5%202.5%200%200%201%2024%2022h-1%22%2F%3E%3C%2Fsvg%3E" type="image/svg+xml">
+<meta name="description" content="Compare two JSON documents field by field — tree, table, and raw diff views. Offline, single-file, zero dependencies. Your data never leaves your browser.">
+<meta property="og:title" content="JSON Comparator">
+<meta property="og:description" content="Compare two JSON documents field by field — tree, table, and raw diff views. Fully offline and private: your data never leaves your browser.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://imrameshwar.github.io/json-comparator/">
+<meta property="og:image" content="https://imrameshwar.github.io/json-comparator/icons/icon-512.svg">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="JSON Comparator">
+<meta name="twitter:description" content="Offline JSON diff tool — tree, table, and raw views. Zero dependencies, no data leaves your browser.">
+<meta name="theme-color" content="#3b6ef5">
 <!-- T25: Content Security Policy — no external network requests, no inline eval,
      Blob URLs required for the Web Worker (worker-src blob:). Adjust frame-ancestors
      when embedding this tool inside another page. -->
@@ -445,7 +456,7 @@
 
   /* ---- Syntax highlighting + Minify (T15) ---- */
   .editor-wrap { display: grid; }
-  .editor-wrap > * { grid-row: 1; grid-column: 1; }
+  .editor-wrap > * { grid-row: 1; grid-column: 2; }
   .editor-highlight {
     padding: 14px; font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
     white-space: pre-wrap; word-break: break-all; word-wrap: break-word;
@@ -574,6 +585,75 @@
     .filter-input { min-width: 0; max-width: none; }
     .state .state-actions { flex-wrap: wrap; justify-content: center; }
   }
+
+  /* ---- D-2: slim footer ---- */
+  .app-footer {
+    margin-top: 32px; padding: 14px 20px; border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--text-3); display: flex; flex-wrap: wrap;
+    align-items: center; gap: 6px 18px; justify-content: center; text-align: center;
+  }
+  .app-footer a { color: var(--text-2); text-decoration: none; }
+  .app-footer a:hover { color: var(--accent); text-decoration: underline; }
+  .app-footer .sep { color: var(--border-strong); }
+  .app-footer .privacy { color: var(--added); font-weight: 500; }
+  @media (max-width: 560px) { .app-footer { gap: 4px 10px; font-size: 11px; } }
+
+  /* ---- D-4: Help / About modal ---- */
+  #helpModal .modal { width: min(660px, 100%); max-height: 85vh; display: flex; flex-direction: column; }
+  #helpModal .modal-body { overflow-y: auto; padding: 20px 24px; flex: 1; }
+  .help-section { margin-bottom: 22px; }
+  .help-section h4 { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--text); }
+  .help-section p, .help-section li { font-size: 13px; color: var(--text-2); line-height: 1.6; margin: 0 0 6px; }
+  .help-section ul { margin: 4px 0 0 16px; padding: 0; }
+  .help-section code { font-family: var(--mono); font-size: 11.5px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; color: var(--text); }
+  .help-view-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 8px; margin-top: 8px; }
+  .help-view-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .help-view-card b { display: block; font-size: 13px; margin-bottom: 3px; }
+  .help-view-card span { font-size: 12px; color: var(--text-2); }
+  .help-privacy { background: var(--added-bg); border: 1px solid var(--added-line); border-radius: 8px; padding: 12px 14px; display: flex; gap: 10px; align-items: flex-start; margin-top: 4px; }
+  .help-privacy svg { flex: none; color: var(--added); margin-top: 1px; }
+  .help-privacy p { margin: 0; font-size: 13px; color: var(--text); line-height: 1.6; }
+  /* "About" link at bottom of shortcuts popover */
+  .shortcuts-pop .sc-about { display: block; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--accent); text-align: center; cursor: pointer; background: none; border-left: none; border-right: none; border-bottom: none; width: 100%; font-family: var(--font); }
+  .shortcuts-pop .sc-about:hover { text-decoration: underline; }
+
+  /* ---- D-6: editor line-number gutter ---- */
+  .editor-wrap { grid-template-columns: var(--ln-w, 0px) 1fr; }
+  /* .editor-wrap > * grid-column already set to 2 in the base rule above */
+  .ln-gutter {
+    grid-row: 1; grid-column: 1; overflow: hidden;
+    background: var(--surface-2); border-right: 1px solid var(--border);
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
+    color: var(--text-3); text-align: right;
+    padding: 14px 6px 14px 4px;
+    user-select: none; pointer-events: none;
+    /* match textarea whitespace model */
+    white-space: pre; word-break: normal;
+  }
+  .editor-wrap.no-hl { grid-template-columns: 0 1fr; }
+  .editor-wrap.no-hl .ln-gutter { display: none; }
+
+  /* ---- D-7: Export report dropdown ---- */
+  .export-pop-wrap { position: relative; display: inline-flex; }
+  .export-pop {
+    position: absolute; bottom: calc(100% + 6px); right: 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md); padding: 4px; min-width: 180px;
+    display: none; flex-direction: column; gap: 2px; z-index: 50;
+  }
+  .export-pop.open { display: flex; }
+  .export-pop button { background: none; border: none; cursor: pointer; font-family: var(--font); font-size: 13px; color: var(--text); padding: 7px 12px; border-radius: 6px; text-align: left; white-space: nowrap; }
+  .export-pop button:hover { background: var(--surface-2); }
+
+  /* ---- D-8: 3-Way tab gated on Base content ---- */
+  .segmented.no-3way #seg3Way { display: none; }
+
+  /* ---- D-9: Library search input ---- */
+  .lib-search-wrap { padding: 10px 12px 4px; }
+  .lib-search { width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-family: var(--font); font-size: 13px; }
+  .lib-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-weak); }
+  /* Folder prefix label on library items */
+  .lib-item .ifolder { font-size: 11px; color: var(--text-3); display: block; margin-bottom: 1px; }
 </style>
 </head>
 <body>
@@ -618,13 +698,13 @@
             </button>
             <button class="mini" data-target="source" data-act="paste">Paste</button>
             <button class="mini" data-target="source" data-act="format">Format</button>
-            <button class="mini" data-target="source" data-act="minify">Minify</button>
             <button class="mini" data-target="source" data-act="copy">Copy</button>
             <button class="mini" data-target="source" data-act="clear">Clear</button>
           </span>
         </div>
         <input type="file" class="pane-file" data-target="source" accept=".json,.jsonc,.json5,.ndjson,application/json,text/plain" hidden>
         <div class="editor-wrap">
+          <div class="ln-gutter" aria-hidden="true" id="srcGutter"></div>
           <pre class="editor-highlight" id="srcHighlight" aria-hidden="true"></pre>
           <textarea id="source" spellcheck="false" placeholder="Paste or type your Source JSON here…"></textarea>
         </div>
@@ -641,13 +721,13 @@
             </button>
             <button class="mini" data-target="target" data-act="paste">Paste</button>
             <button class="mini" data-target="target" data-act="format">Format</button>
-            <button class="mini" data-target="target" data-act="minify">Minify</button>
             <button class="mini" data-target="target" data-act="copy">Copy</button>
             <button class="mini" data-target="target" data-act="clear">Clear</button>
           </span>
         </div>
         <input type="file" class="pane-file" data-target="target" accept=".json,.jsonc,.json5,.ndjson,application/json,text/plain" hidden>
         <div class="editor-wrap">
+          <div class="ln-gutter" aria-hidden="true" id="tgtGutter"></div>
           <pre class="editor-highlight" id="tgtHighlight" aria-hidden="true"></pre>
           <textarea id="target" spellcheck="false" placeholder="Paste or type your Target JSON here…"></textarea>
         </div>
@@ -669,6 +749,7 @@
         </div>
         <input type="file" class="pane-file" data-target="base" accept=".json,.jsonc,.json5,.ndjson,application/json,text/plain" hidden>
         <div class="editor-wrap">
+          <div class="ln-gutter" aria-hidden="true" id="baseGutter"></div>
           <pre class="editor-highlight" id="baseHighlight" aria-hidden="true"></pre>
           <textarea id="base" spellcheck="false" placeholder='Paste the common ancestor JSON here…'></textarea>
         </div>
@@ -707,7 +788,6 @@
         </div>
         <span class="tb-spacer"></span>
         <div class="tb-secondary">
-          <label class="check"><input type="checkbox" id="unordered"> Unordered arrays</label>
           <button class="btn ghost" id="optionsBtn" title="Comparison options">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.1 4.9a9 9 0 0 1 0 14.2M4.9 4.9a9 9 0 0 0 0 14.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2"/></svg>
             <span class="btn-label">Options</span>
@@ -732,6 +812,9 @@
     </div>
 
     <div class="options-panel hidden" id="optionsPanel">
+      <div class="opt-row">
+        <label class="check" style="font-size:13px"><input type="checkbox" id="unordered"> Unordered arrays</label>
+      </div>
       <div class="opt-row">
         <label class="opt-label" for="ignoreKeys">Ignore keys</label>
         <input class="opt-input" type="text" id="ignoreKeys" placeholder="e.g. createdAt, updatedAt" aria-label="Comma-separated keys to ignore">
@@ -841,6 +924,16 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg>
           Generate table
         </button>
+        <div class="export-pop-wrap">
+          <button class="btn sm" id="exportReport" disabled title="Export the complete diff — all changes, not just selected rows">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
+            Export report ▾
+          </button>
+          <div class="export-pop" id="exportPop">
+            <button data-export="md">Download Markdown (.md)</button>
+            <button data-export="html">Download Standalone HTML</button>
+          </div>
+        </div>
         <button class="btn sm" id="exportPatch" disabled title="Export as RFC 6902 JSON Patch">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
           JSON Patch
@@ -909,7 +1002,9 @@
         </div>
         <div class="drawer-tools">
           <button class="btn primary sm" id="saveHereBtn">Save current</button>
-          <button class="btn ghost sm hidden" id="newFolderBtn">+ New folder</button>
+        </div>
+        <div class="lib-search-wrap">
+          <input type="search" class="lib-search" id="libSearch" placeholder="Search saved comparisons…" aria-label="Search saved comparisons">
         </div>
         <div class="drawer-body" id="libBody"></div>
       </div>
@@ -923,8 +1018,7 @@
         </div>
         <div class="modal-body">
           <div class="form-row"><label for="saveName">Name</label><input id="saveName" placeholder="e.g. API response v1 vs v2"></div>
-          <div class="form-row"><label for="saveFolder">Folder</label><select id="saveFolder"></select></div>
-          <div class="form-row hidden" id="newFolderRow"><label for="saveNewFolder">New folder name</label><input id="saveNewFolder" placeholder="Folder name"></div>
+          <!-- D-9: folder dropdown removed; items saved without folder assignment -->
         </div>
         <div class="modal-actions" style="justify-content:flex-end">
           <button class="btn ghost sm" id="saveCancel">Cancel</button>
@@ -944,10 +1038,71 @@
         <dt>Close dialogs</dt><dd><kbd>Esc</kbd></dd>
         <dt>Show this help</dt><dd><kbd>?</kbd></dd>
       </dl>
+      <button class="sc-about" id="openHelpModal">Help &amp; About…</button>
+    </div>
+
+    <div id="helpModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+      <div class="modal">
+        <div class="modal-head">
+          <h3 id="helpModalTitle">Help &amp; About</h3>
+          <button class="close" id="helpModalClose" aria-label="Close help dialog">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="help-section">
+            <h4>Views</h4>
+            <div class="help-view-grid">
+              <div class="help-view-card"><b>Tree</b><span>Collapsible JSON structure. Color-coded: green = added, red = removed, amber = changed value, violet = contains changes.</span></div>
+              <div class="help-view-card"><b>Table</b><span>Flat list of every change with its path (<code>$.address.geo.lng</code>), old value, and new value.</span></div>
+              <div class="help-view-card"><b>Raw</b><span>Side-by-side (or unified) text diff with word-level highlights and scroll sync.</span></div>
+              <div class="help-view-card"><b>3-Way</b><span>Three-way merge view (Base / Source / Target). Shows conflicts and side-only changes. Appears when the Base pane has content.</span></div>
+            </div>
+          </div>
+          <div class="help-section">
+            <h4>Options</h4>
+            <ul>
+              <li><b>Unordered arrays</b> — ignore element order when comparing scalar arrays.</li>
+              <li><b>Array key field</b> — match object-arrays by a shared key (e.g. <code>id</code>) instead of by position.</li>
+              <li><b>Ignore keys</b> — comma-separated key names to skip (e.g. <code>updatedAt, version</code>).</li>
+              <li><b>Numeric tolerance</b> — treat values as equal if their absolute difference is within this threshold.</li>
+              <li><b>Ignore string case</b> — <code>"Hello"</code> and <code>"hello"</code> are equal.</li>
+              <li><b>Input format</b> — JSON (strict), JSONC (comments), JSON5, or NDJSON (one document per line).</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <h4>Session · Library · Share</h4>
+            <ul>
+              <li><b>Save / Load session</b> — downloads or restores a <code>.json</code> bundle of both documents + settings. Portable across machines.</li>
+              <li><b>Library</b> — saves comparisons to browser <code>localStorage</code>. Use search to find saved items by name. Lost if you clear site data; use sessions for durable backup.</li>
+              <li><b>Share URL</b> — encodes both documents verbatim into the URL fragment. Works offline; no server round-trip. Warn: large documents produce very long URLs.</li>
+            </ul>
+          </div>
+          <div class="help-section">
+            <h4>Privacy</h4>
+            <div class="help-privacy">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <p><strong>Your data never leaves your browser.</strong> <code>json_compare.html</code> is fully offline: no network requests, no server, no analytics. The Content Security Policy header (<code>connect-src 'none'</code>) enforces this at the browser level. The only time data leaves the browser is when you explicitly use <b>Share URL</b> (it's in the URL fragment, not a request) or the feedback button on the hosted site.</p>
+            </div>
+          </div>
+          <div class="help-section" style="margin-bottom:4px">
+            <h4>About</h4>
+            <p>JSON Comparator v2.5 · <a href="https://github.com/imrameshwar/json-comparator" target="_blank" rel="noopener noreferrer">GitHub</a> · MIT License</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="toast" class="toast hidden"></div>
   </div>
+
+  <footer class="app-footer">
+    <span>JSON Comparator v2.5</span>
+    <span class="sep">·</span>
+    <a href="https://github.com/imrameshwar/json-comparator" target="_blank" rel="noopener noreferrer">GitHub</a>
+    <span class="sep">·</span>
+    <a href="https://github.com/imrameshwar/json-comparator/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT License</a>
+    <span class="sep">·</span>
+    <span class="privacy">🔒 Your data never leaves your browser</span>
+  </footer>
 
 <script>
 /* ===== DIFF-CORE:START — single source of truth; mirrored in json_compare.html ===== */
@@ -1406,21 +1561,46 @@ function tokenizeJSON(text) {
   }
   return out;
 }
+function _gutterFor(taId) {
+  if (taId === "source") return document.getElementById("srcGutter");
+  if (taId === "target") return document.getElementById("tgtGutter");
+  if (taId === "base")   return document.getElementById("baseGutter");
+  return null;
+}
+function refreshLineNums(taId) {
+  const ta     = document.getElementById(taId);
+  const gutter = _gutterFor(taId);
+  const wrap   = ta && ta.closest(".editor-wrap");
+  if (!gutter || !wrap || !ta) return;
+  // Respect the 80k-char highlight cutoff — no gutter when highlight is off.
+  if (ta.value.length > MAX_HIGHLIGHT) { wrap.style.removeProperty("--ln-w"); return; }
+  const lines  = (ta.value.match(/\n/g) || []).length + 1;
+  const digits = String(lines).length;
+  // Dynamic gutter width: room for the digits + padding (char ~7.5px at 12.5px monospace).
+  const gutW   = Math.max(28, digits * 8 + 14);
+  wrap.style.setProperty("--ln-w", gutW + "px");
+  // Build line-number spans as a single text block (same line-height as editor).
+  let nums = "";
+  for (let i = 1; i <= lines; i++) nums += i + "\n";
+  gutter.textContent = nums;
+  gutter.scrollTop   = ta.scrollTop;
+}
 function refreshHighlight(taId) {
   const ta = document.getElementById(taId);
   const wrap = ta ? ta.closest(".editor-wrap") : null;
-  const pre  = document.getElementById(taId === "source" ? "srcHighlight" : "tgtHighlight");
+  const pre  = document.getElementById(taId === "source" ? "srcHighlight" : taId === "target" ? "tgtHighlight" : "baseHighlight");
   if (!pre || !wrap) return;
-  if (ta.value.length > MAX_HIGHLIGHT) { wrap.classList.add("no-hl"); pre.innerHTML = ""; return; }
+  if (ta.value.length > MAX_HIGHLIGHT) { wrap.classList.add("no-hl"); pre.innerHTML = ""; refreshLineNums(taId); return; }
   wrap.classList.remove("no-hl");
   pre.innerHTML = tokenizeJSON(ta.value) + "\n";  // trailing \n prevents last-line collapse
+  refreshLineNums(taId);
 }
 const _hlTimers = {};
 function scheduleHighlight(taId) {
   clearTimeout(_hlTimers[taId]);
   _hlTimers[taId] = setTimeout(() => refreshHighlight(taId), 60);
 }
-function refreshBothHighlights() { refreshHighlight("source"); refreshHighlight("target"); }
+function refreshBothHighlights() { refreshHighlight("source"); refreshHighlight("target"); refreshHighlight("base"); }
 
 /* ---- filterChanges (T11) — pure filter for Change[] arrays ----------------
  * Inlined from src/filter.js (same logic, no export keyword).
@@ -2660,6 +2840,9 @@ function syncSelectionUI() {
   document.getElementById("clearSel").disabled    = count === 0;
   document.getElementById("genTable").disabled    = count === 0;
   document.getElementById("exportPatch").disabled = count === 0;
+  // D-7: export report enabled whenever there are any diff rows (not just selected)
+  const expBtn = document.getElementById("exportReport");
+  if (expBtn) expBtn.disabled = flatEntries.length === 0;
 }
 
 function sideVal(e, side) {
@@ -3151,7 +3334,7 @@ document.querySelectorAll(".pane-file").forEach(input => {
     e.target.value = "";  // allow re-uploading the same file
     if (!file) return;
     if (file.size > SIZE_HARD_LIMIT) {
-      showError("File too large", `“${file.name}” is ${_formatBytes(file.size)}, above the 50 MB in-browser limit.`);
+      showError("File too large", `"${file.name}" is ${_formatBytes(file.size)}, above the 50 MB in-browser limit.`);
       return;
     }
     const reader = new FileReader();
@@ -3162,7 +3345,7 @@ document.querySelectorAll(".pane-file").forEach(input => {
       toast(`Loaded ${file.name} into ${targetId}`);
       if (lastCompared) render();
     };
-    reader.onerror = () => showError("Could not read file", `Failed to read “${file.name}”.`);
+    reader.onerror = () => showError("Could not read file", `Failed to read "${file.name}".`);
     reader.readAsText(file);
   });
 });
@@ -3228,20 +3411,36 @@ document.getElementById("target").addEventListener("input", () => { updateCounts
 // editor. Keep the syntax-highlight overlay aligned by mirroring the textarea's
 // scroll offset onto its sibling <pre>.
 document.querySelectorAll(".editor-wrap").forEach(wrap => {
-  const ta = wrap.querySelector("textarea");
-  const pre = wrap.querySelector(".editor-highlight");
+  const ta     = wrap.querySelector("textarea");
+  const pre    = wrap.querySelector(".editor-highlight");
+  const gutter = wrap.querySelector(".ln-gutter");  // D-6
   if (!ta || !pre) return;
   ta.addEventListener("scroll", () => {
-    pre.scrollTop = ta.scrollTop;
+    pre.scrollTop  = ta.scrollTop;
     pre.scrollLeft = ta.scrollLeft;
+    if (gutter) gutter.scrollTop = ta.scrollTop;  // D-6: keep line numbers in sync
   }, { passive: true });
 });
+
+// D-8: Gate the 3-Way tab — only show when the Base pane has content.
+// If in 3-Way mode and Base is cleared, fall back to tree view.
+function update3WayTabVisibility() {
+  const base   = document.getElementById("base");
+  const tabRow = document.querySelector(".segmented");
+  const tab3w  = document.getElementById("seg3Way");
+  if (!base || !tabRow || !tab3w) return;
+  const hasBase = base.value.trim().length > 0;
+  tabRow.classList.toggle("no-3way", !hasBase);
+  // If we're currently in 3-Way mode but Base was cleared, switch to tree.
+  if (!hasBase && viewMode === "3way") setView("tree");
+}
 // T24: base pane input → update count + re-render 3-way if active
 document.getElementById("base").addEventListener("input", () => {
   const len = document.getElementById("base").value.length;
   const el = document.getElementById("baseCount");
   if (el) el.textContent = _formatBytes(len);
   if (lastCompared && viewMode === "3way") renderView();
+  update3WayTabVisibility();
 });
 
 // New session: clear both documents + the current comparison and return to the
@@ -3520,7 +3719,7 @@ function currentDiffCount() {
   if (so === undefined || to === undefined) return null;
   return diffCore(so, to, { unordered: document.getElementById("unordered").checked }).filter(r => r.op !== "equal").length;
 }
-function doSave(name, folderId) {
+function doSave(name, folderId) {  // D-9: folderId arg kept for API compat but no longer set from UI
   const srcText = document.getElementById("source").value;
   const tgtText = document.getElementById("target").value;
   if (!srcText.trim() && !tgtText.trim()) { toast("Nothing to save yet"); return false; }
@@ -3541,56 +3740,54 @@ function updateLibCount() {
   const el = document.getElementById("libCount"), n = library.items.length;
   el.textContent = n; el.classList.toggle("hidden", n === 0);
 }
-function itemHTML(it, folderOpts, showFolder) {
-  let meta = (it.diffCount == null ? "not parseable" : (it.diffCount + " diff" + (it.diffCount === 1 ? "" : "s"))) + " · " + new Date(it.createdAt).toLocaleString();
-  if (showFolder) {
-    const f = it.folderId && library.folders.find(x => x.id === it.folderId);
-    meta += " · " + (f ? "📁 " + f.name : "Ungrouped");
-  }
-  return `<div class="lib-item"><div class="info" data-open="${it.id}"><div class="iname">${escapeHtml(it.name)}</div><div class="imeta">${escapeHtml(meta)}</div></div>` +
-    `<div class="iactions"><select data-move="${it.id}" title="Move to folder">${folderOpts(it.folderId || null)}</select>` +
+// D-9: itemHTML simplified — folder prefix label, no move-to-folder dropdown
+function itemHTML(it) {
+  const f   = it.folderId && library.folders.find(x => x.id === it.folderId);
+  const lbl = f ? `<span class="ifolder">${escapeHtml(f.name + " / ")}</span>` : "";
+  const meta = (it.diffCount == null ? "not parseable" : (it.diffCount + " diff" + (it.diffCount === 1 ? "" : "s"))) + " · " + new Date(it.createdAt).toLocaleString();
+  return `<div class="lib-item"><div class="info" data-open="${it.id}"><div class="iname">${lbl}${escapeHtml(it.name)}</div><div class="imeta">${escapeHtml(meta)}</div></div>` +
+    `<div class="iactions">` +
     `<button class="miniico" data-act="rename" data-id="${it.id}" title="Rename">${icoPencil}</button>` +
     `<button class="miniico" data-act="delete" data-id="${it.id}" title="Delete">${icoTrash}</button></div></div>`;
 }
 function renderLibrary() {
   const body = document.getElementById("libBody");
-  // "+ New folder" belongs to the Folders tab only
-  const nf = document.getElementById("newFolderBtn");
-  if (nf) nf.classList.toggle("hidden", libTab !== "folders");
+  // D-9: search filter
+  const searchEl = document.getElementById("libSearch");
+  const q = searchEl ? searchEl.value.trim().toLowerCase() : "";
 
-  if (!library.items.length && !library.folders.length) {
-    body.innerHTML = `<div class="lib-empty">No saved comparisons yet.<br>Compare two JSONs, then press <b>Save current</b>.${lsOK ? "" : "<br><br>Note: this browser blocks local storage for files opened directly, so saves won't persist after closing. Use “Save session” to keep a file."}</div>`;
+  const EMPTY = q
+    ? '<div class="lib-empty">No matches.</div>'
+    : '<div class="lib-empty">No saved comparisons yet.<br>Compare two JSONs, then press <b>Save current</b>.' + (lsOK ? '' : '<br><br>Note: this browser blocks local storage for files opened directly, so saves won’t persist after closing. Use "Save session" to keep a file.')
+    + '</div>';
+
+  if (!library.items.length) { body.innerHTML = EMPTY; return; }
+
+  // D-9: all items; filter by search query
+  const allItems = [...library.items];
+  const filtered = q
+    ? allItems.filter(it => _libLabel(it).toLowerCase().includes(q))
+    : allItems;
+
+  if (!filtered.length) { body.innerHTML = EMPTY; return; }
+
+  // Recent tab: newest-first
+  if (libTab === 'recent') {
+    const sorted = filtered.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    body.innerHTML = sorted.map(it => itemHTML(it)).join('');
     return;
   }
-  const folderOpts = id => `<option value="">Ungrouped</option>` +
-    library.folders.map(f => `<option value="${f.id}"${f.id === id ? " selected" : ""}>${escapeHtml(f.name)}</option>`).join("");
 
-  // ── Recent tab: flat, newest-first list across all folders ───────────────
-  if (libTab === "recent") {
-    if (!library.items.length) {
-      body.innerHTML = `<div class="lib-empty">No saved comparisons yet.<br>Compare two JSONs, then press <b>Save current</b>.</div>`;
-      return;
-    }
-    const recent = [...library.items].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    body.innerHTML = recent.map(it => itemHTML(it, folderOpts, true)).join("");
-    return;
-  }
-
-  // ── Folders tab: grouped, collapsible folder view ────────────────────────
-  const icoFolder = `<svg class="ficon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6l2 3h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>`;
-  const groups = [{ id: "root", name: "Ungrouped" }, ...library.folders];
-  let html = "";
-  groups.forEach(g => {
-    const isRoot = g.id === "root";
-    const items = library.items.filter(it => (it.folderId || "root") === g.id);
-    if (isRoot && !items.length) return;
-    const open = expandedFolders.has(g.id) ? "open" : "";
-    html += `<div class="lib-folder ${open}"><div class="lib-folder-head" data-folder="${g.id}">` +
-      `<span class="fchev">▶</span>${icoFolder}<span class="fname">${escapeHtml(g.name)}</span><span class="fcount">${items.length}</span>`;
-    if (!isRoot) html += `<span class="factions"><button class="miniico" data-fact="rename" data-fid="${g.id}" title="Rename folder">${icoPencil}</button><button class="miniico" data-fact="delete" data-fid="${g.id}" title="Delete folder">${icoTrash}</button></span>`;
-    html += `</div><div class="lib-items">${items.map(it => itemHTML(it, folderOpts)).join("") || `<div class="lib-empty-sm">No comparisons in this folder</div>`}</div></div>`;
+  // Folders tab: A-Z by "FolderName / ItemName" flat list
+  const sorted = filtered.slice().sort((a, b) => {
+    const la = _libLabel(a).toLowerCase(), lb = _libLabel(b).toLowerCase();
+    return la < lb ? -1 : la > lb ? 1 : 0;
   });
-  body.innerHTML = html;
+  body.innerHTML = sorted.map(it => itemHTML(it)).join('');
+}
+function _libLabel(it) {
+  const f = it.folderId && library.folders.find(x => x.id === it.folderId);
+  return f ? f.name + " / " + it.name : it.name;
 }
 
 function openDrawer() { setLibTab("recent"); openWithTrap("drawer", "#drawerClose"); }  // T18 — default to Recent
@@ -3601,11 +3798,15 @@ function closeDrawer() { closeWithTrap("drawer"); }  // T18
 document.getElementById("libBtn").addEventListener("click", openDrawer);
 document.getElementById("drawerClose").addEventListener("click", closeDrawer);
 document.getElementById("drawer").addEventListener("click", e => { if (e.target.id === "drawer") closeDrawer(); });
-document.getElementById("newFolderBtn").addEventListener("click", () => {
-  showPrompt("New folder name", "", n => {
-    if (n && n.trim()) { library.folders.push({ id: uid(), name: n.trim() }); persist(); renderLibrary(); }
+// D-9: newFolderBtn removed from HTML; listener guarded
+(function() {
+  const btn = document.getElementById("newFolderBtn");
+  if (btn) btn.addEventListener("click", () => {
+    showPrompt("New folder name", "", n => {
+      if (n && n.trim()) { library.folders.push({ id: uid(), name: n.trim() }); persist(); renderLibrary(); }
+    });
   });
-});
+})();
 
 document.getElementById("libBody").addEventListener("click", e => {
   const open = e.target.closest("[data-open]");
@@ -3637,23 +3838,14 @@ document.getElementById("libBody").addEventListener("click", e => {
   const fh = e.target.closest("[data-folder]");
   if (fh) { const id = fh.dataset.folder; expandedFolders.has(id) ? expandedFolders.delete(id) : expandedFolders.add(id); renderLibrary(); }
 });
+// D-9: folder move select removed; change handler kept for forward-compat
 document.getElementById("libBody").addEventListener("change", e => {
-  const mv = e.target.closest("[data-move]");
-  if (mv) { const it = library.items.find(x => x.id === mv.dataset.move); if (it) { it.folderId = mv.value || null; persist(); renderLibrary(); } }
+  // no-op: move-to-folder dropdown removed in D-9
 });
 
-/* save modal */
-function fillSaveFolders() {
-  document.getElementById("saveFolder").innerHTML =
-    `<option value="">Ungrouped</option>` +
-    library.folders.map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`).join("") +
-    `<option value="__new">+ New folder…</option>`;
-  document.getElementById("newFolderRow").classList.add("hidden");
-  document.getElementById("saveNewFolder").value = "";
-}
+/* save modal — D-9: folder selector removed; items always saved without folder */
 function openSaveModal() {
   closeDrawer();
-  fillSaveFolders();
   document.getElementById("saveName").value = "";
   openWithTrap("saveModal", "#saveName");  // T18: focus trap, focus input first
 }
@@ -3663,16 +3855,9 @@ document.getElementById("saveHereBtn").addEventListener("click", openSaveModal);
 document.getElementById("saveModalClose").addEventListener("click", closeSaveModal);
 document.getElementById("saveCancel").addEventListener("click", closeSaveModal);
 document.getElementById("saveModal").addEventListener("click", e => { if (e.target.id === "saveModal") closeSaveModal(); });
-document.getElementById("saveFolder").addEventListener("change", e => {
-  document.getElementById("newFolderRow").classList.toggle("hidden", e.target.value !== "__new");
-});
 document.getElementById("saveConfirm").addEventListener("click", () => {
-  let folderId = document.getElementById("saveFolder").value;
-  if (folderId === "__new") {
-    const nm = document.getElementById("saveNewFolder").value.trim();
-    if (nm) { const f = { id: uid(), name: nm }; library.folders.push(f); folderId = f.id; } else folderId = null;
-  }
-  if (doSave(document.getElementById("saveName").value.trim(), folderId || null)) closeSaveModal();
+  // D-9: folder management removed — always save without a folder assignment
+  if (doSave(document.getElementById("saveName").value.trim(), null)) closeSaveModal();
 });
 
 /* ============ T18: ACCESSIBILITY ============ */
@@ -3888,6 +4073,12 @@ document.getElementById("clearFilter").addEventListener("click", () => {
   if (lastCompared) renderView();
 });
 
+
+// D-9: library search input → re-render
+(function() {
+  const s = document.getElementById("libSearch");
+  if (s) s.addEventListener("input", () => renderLibrary());
+})();
 // T12: nav buttons
 document.getElementById("nextDiff").addEventListener("click", () => navStep(1));
 document.getElementById("prevDiff").addEventListener("click", () => navStep(-1));
@@ -3918,9 +4109,23 @@ document.addEventListener("click", e => {
     toggleShortcuts(false);
 });
 
+// D-4: Help / About modal
+function openHelpModal() {
+  toggleShortcuts(false);  // close shortcuts popover first
+  openWithTrap("helpModal", "#helpModalClose");
+}
+function closeHelpModal() { closeWithTrap("helpModal"); }
+(function wireHelpModal() {
+  const openBtn  = document.getElementById("openHelpModal");
+  const closeBtn = document.getElementById("helpModalClose");
+  const overlay  = document.getElementById("helpModal");
+  if (openBtn)  openBtn.addEventListener("click",  openHelpModal);
+  if (closeBtn) closeBtn.addEventListener("click", closeHelpModal);
+  if (overlay)  overlay.addEventListener("click",  e => { if (e.target === overlay) closeHelpModal(); });
+})();
 document.addEventListener("keydown", e => {
   if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { lastCompared = true; selected.clear(); render(); }
-  if (e.key === "Escape") { closeModal(); closeDrawer(); closeSaveModal(); toggleShortcuts(false); }
+  if (e.key === "Escape") { closeModal(); closeDrawer(); closeSaveModal(); closeHelpModal(); toggleShortcuts(false); }
   // "?" opens the shortcuts help (when not typing in a field)
   if (e.key === "?" ) {
     const tag = document.activeElement ? document.activeElement.tagName : "";
@@ -3936,6 +4141,82 @@ document.addEventListener("keydown", e => {
   }
 });
 
+// D-7: Export full diff report (all changes, not just selected rows)
+function buildStandaloneHTML(rows) {
+  const tableBody = buildHTMLTable(rows, true);
+  const title = "JSON Comparator — Diff Report";
+  const ts = new Date().toLocaleString();
+  const counts = { added: 0, removed: 0, changed: 0 };
+  rows.forEach(r => { if (r.op === "added") counts.added++; else if (r.op === "removed") counts.removed++; else counts.changed++; });
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 14px; line-height: 1.5; margin: 0; padding: 24px; color: #1a1d23; background: #f6f7f9; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .meta { font-size: 13px; color: #5b6270; margin-bottom: 20px; }
+  .summary { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
+  .chip.added { background: #e7f5ec; color: #1a7f37; }
+  .chip.removed { background: #fdeced; color: #cf222e; }
+  .chip.changed { background: #fdf6e3; color: #9a6700; }
+  table { border-collapse: collapse; width: 100%; font-family: Menlo, Consolas, monospace; font-size: 13px; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  th { border: 1px solid #d3d7dd; padding: 8px 12px; text-align: left; background: #f3f4f6; font-family: -apple-system, sans-serif; }
+  td { border: 1px solid #d3d7dd; padding: 6px 10px; vertical-align: top; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; }
+  .pill.added { background:#e7f5ec; color:#1a7f37; }
+  .pill.removed { background:#fdeced; color:#cf222e; }
+  .pill.changed, .pill.type_changed { background:#fdf6e3; color:#9a6700; }
+  .footer { margin-top: 24px; font-size: 12px; color: #8a909c; text-align: center; }
+  .footer a { color: #3b6ef5; text-decoration: none; }
+</style></head>
+<body>
+<h1>JSON Diff Report</h1>
+<p class="meta">Generated ${ts} · ${rows.length} change${rows.length !== 1 ? "s" : ""}</p>
+<div class="summary">
+  ${counts.added   ? `<span class="chip added">+${counts.added} added</span>` : ""}
+  ${counts.removed ? `<span class="chip removed">−${counts.removed} removed</span>` : ""}
+  ${counts.changed ? `<span class="chip changed">~${counts.changed} changed</span>` : ""}
+</div>
+${tableBody}
+<p class="footer">Made with <a href="https://imrameshwar.github.io/json-comparator/" target="_blank" rel="noopener noreferrer">JSON Comparator</a> · MIT License</p>
+</body></html>`;
+}
+function downloadText(filename, content, mime) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function exportReport(format) {
+  const rows = flatEntries;
+  if (!rows || !rows.length) return;
+  const ts = new Date().toISOString().slice(0,10);
+  if (format === "md") {
+    downloadText(`diff-report-${ts}.md`, buildMarkdown(rows), "text/markdown");
+    toast("Downloaded Markdown report");
+  } else if (format === "html") {
+    downloadText(`diff-report-${ts}.html`, buildStandaloneHTML(rows), "text/html");
+    toast("Downloaded HTML report");
+  }
+}
+// Wire export-report button + dropdown
+(function wireExportReport() {
+  const btn = document.getElementById("exportReport");
+  const pop = document.getElementById("exportPop");
+  if (!btn || !pop) return;
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+    pop.classList.toggle("open");
+  });
+  pop.addEventListener("click", e => {
+    const fmt = e.target.dataset.export;
+    if (fmt) { pop.classList.remove("open"); exportReport(fmt); }
+  });
+  document.addEventListener("click", () => pop.classList.remove("open"));
+})();
 // P0-2: keep the sticky-header offsets in sync with the *actual* rendered
 // heights of the appbar and compare toolbar. The toolbar wraps to a second row
 // below ~1250px; hardcoded tops (62 / 132px) then let the results-head slide
@@ -3959,7 +4240,8 @@ syncStickyOffsets();
 
 updateCounts();
 updateLibCount();
-refreshBothHighlights();  // T15: initial highlight pass (textareas may be empty on load)
+refreshBothHighlights();
+update3WayTabVisibility();  // D-8: gate 3-Way tab on startup
 </script>
 </body>
 </html>

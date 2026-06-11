@@ -5,12 +5,21 @@ A self-contained toolkit for comparing two JSON documents and seeing exactly wha
 > **🔒 Your data never leaves your browser.**
 > `json_compare.html` is a fully offline, zero-dependency single file. It makes no network requests, stores no data on any server, and works entirely from `file://` URLs with no install or build step required. The Content Security Policy header (`connect-src 'none'`) enforces this at the browser level. The only time data touches a network is if you explicitly use the **Share URL** feature — which embeds both documents verbatim in the URL fragment and shows a privacy warning before doing so.
 
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
 ## What's in this folder
 
 | File | What it is |
 | --- | --- |
 | `json_compare.html` | The web app. A single self-contained file — no install, no server, no internet. Just open it in a browser. |
+| `index.html` | The GitHub Pages build: `json_compare.html` + a feedback widget (the only difference). |
 | `json_compare.py` | A zero-dependency command-line comparator (Python 3). Handy for scripts and CI. |
+| `manifest.json` | PWA manifest linked from `index.html` (makes the hosted page installable). |
+| `icons/` | SVG app icons for the PWA manifest. |
 | `source.json` | Starter "source" document (empty `{}` — fill it in). |
 | `target.json` | Starter "target" document (empty `{}` — fill it in). |
 | `README.md` | This guide. |
@@ -44,13 +53,21 @@ If a pane isn't valid JSON, the error banner names the **line and column** of th
 - **TSV** — drops straight into Excel / Google Sheets columns.
 - **CSV download**.
 
-**Save & reload comparisons (Library)** — the bookmark icon saves the current comparison (with a name and folder); the folder icon opens your library. Folders are collapsible — click one to reveal its saved comparisons. Click any saved item to reload both documents and view settings instantly. You can rename, delete, and move items between folders, and create/rename/delete folders. Saved comparisons live in the browser's local storage and persist between sessions.
+**Save & reload comparisons (Library)** — the bookmark icon saves the current comparison (with a name); the folder icon opens your library. Use the search box to find saved items by name. Click any saved item to reload both documents and view settings instantly. Saved comparisons live in the browser's local storage and persist between sessions.
 
 **Save / Load session files** — **Save session** downloads a single `.json` bundling both documents plus your settings. **Load session** (or just drag a `.json` file onto the page) restores everything. This is the portable backup — share it or move it between machines. Import also accepts a plain `[source, target]` array.
 
-**Per-pane tools** — each input has **Upload**, **Paste**, **Format** (pretty-print), **Minify**, **Copy**, and **Clear**. **Swap** exchanges source and target. Drag the **divider** between the two editors to give more width to the larger document — double-click it to reset to 50/50, or focus it and use ← / → (5% steps) and Home / End. The split is remembered between sessions.
+**Export full diff report** — the **Export report ▾** button next to Generate table downloads the entire diff (all changes, not just selected rows) as a Markdown file (for GitHub/Jira/Notion) or a standalone HTML file (a self-contained page with summary chips and styled table, ready to attach to a ticket or PR).
 
-**Other** — light/dark theme toggle, live character counts, and an "Unordered scalar arrays" option that ignores order when comparing arrays of primitives.
+**Editor line numbers** — each input pane shows line numbers in a gutter that scrolls in sync with the editor. Numbers hide automatically for very large files (>80 k chars) where syntax highlighting is also disabled.
+
+**Per-pane tools** — each input has **Upload**, **Paste**, **Format** (pretty-print), **Copy**, and **Clear**. **Swap** exchanges source and target. Drag the **divider** between the two editors to give more width to the larger document — double-click it to reset to 50/50, or focus it and use ← / → (5% steps) and Home / End. The split is remembered between sessions.
+
+**Help & About** — the `?` button opens a keyboard-shortcuts popover with a "Help & About…" link that opens a full help dialog: views overview, Options explained, Session vs Library vs Share, and the privacy model.
+
+**3-Way merge view** — appears automatically in the view tabs when the Base pane has content. Shows left-only, right-only, and conflicting changes side-by-side against the common ancestor.
+
+**Other** — light/dark theme toggle, live character counts, and an "Unordered arrays" option in the Options panel that ignores order when comparing scalar arrays.
 
 ### Behaviors to be aware of
 

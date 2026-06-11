@@ -5,6 +5,43 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.6] — 2026-06-11
+
+Phase D Commit 2 — feature-creep trims (D-8…D-11). No architectural change; DIFF-CORE byte-identical, all preserved IDs still present (removed elements lose their listeners — guarded with existence checks throughout). 322 tests green.
+
+### Changed
+
+- **3-Way tab gated on Base content (D-8)** — the 3-Way view tab is now hidden by default and only becomes visible when the Base pane has content. If a session is loaded with 3-Way mode active but no Base, the view falls back to Tree. A new `update3WayTabVisibility()` helper is called on `base` input and on startup.
+- **Library simplified — folders flattened, search added (D-9)** — folder management UI (create/rename/delete folder, move-to-folder dropdown) has been removed from the Library drawer. Existing saved items are preserved unchanged; any that had a folder assignment now show "FolderName / ItemName" as their label in the Folders tab. A name-search input above the list filters both tabs in real time. The save-comparison dialog no longer prompts for a folder. No localStorage data is touched; `library.folders` remains in storage for forward compatibility.
+- **"Unordered arrays" moved to Options panel (D-10)** — the toolbar checkbox is removed from the secondary toolbar group and added as the first row in the Options panel. The element `id="unordered"` and the `savePrefs`/`loadPrefs` key are unchanged; all wiring, keyboard shortcut, and persisted-pref behavior are identical.
+- **Minify removed from per-pane tool rows (D-11)** — the Minify buttons are removed from the Source and Target pane headers (Base never had one). Format, Copy, Upload, Paste, and Clear remain. The Minify action handler in JS is still present but unreachable — no regression if someone triggers it programmatically.
+
+### Notes
+
+- `index.html` regenerated from `json_compare.html` + FEEDBACK delta. Parity test confirms identical outside FEEDBACK markers and CSP line.
+
+---
+
+## [2.5] — 2026-06-11
+
+Phase D Commit 1 — productization additions (D-1…D-7). No architectural change; DIFF-CORE byte-identical, `connect-src 'none'` intact in `json_compare.html`, all element IDs preserved. 322 tests green.
+
+### Added
+
+- **Site identity (D-1)** — inline SVG favicon (data URI, stays self-contained), `<meta name="description">`, Open Graph (`og:title`, `og:description`, `og:type`, `og:url`, `og:image`), Twitter card, and `theme-color` meta in both `json_compare.html` and `index.html`.
+- **MIT LICENSE file (D-3)** — the repo was legally "all rights reserved". Adds `LICENSE` (MIT). Footer and README now reference it.
+- **Slim footer (D-2)** — one-row muted footer: app version · GitHub link · MIT License · privacy guarantee ("🔒 Your data never leaves your browser"). The hosted `index.html` adds a FEEDBACK-fenced footnote noting the feedback form is the only network call.
+- **Help / About modal (D-4)** — full-page help dialog reusing the existing modal + `installFocusTrap` infrastructure. Covers: views overview (Tree / Table / Raw / 3-Way), all Options explained, Session vs Library vs Share, and the privacy model. Accessible via the "Help & About…" link at the bottom of the existing keyboard-shortcuts popover; Escape closes it.
+- **PWA manifest + icons (D-5)** — `manifest.json` with `display: standalone`, `theme_color`, and SVG icons (`icons/icon-192.svg`, `icons/icon-512.svg`). Linked only from `index.html`; `json_compare.html` stays fully self-contained with zero network requests.
+- **Editor line-number gutter (D-6)** — line numbers appear to the left of every editor pane, using the existing highlight-overlay grid technique. The gutter width is computed dynamically from the digit count. Numbers scroll in sync with the textarea. Respects the 80 k-char highlight cutoff: gutter hides when highlighting is off. New helper `refreshLineNums(taId)` called from `refreshHighlight`.
+- **Export report button (D-7)** — "Export report ▾" button in the selection bar opens a dropdown with two actions: **Download Markdown** (`.md`) and **Download Standalone HTML** (`.html`). Exports the *entire* diff (all rows), not just selected ones. Reuses the existing `buildMarkdown` and `buildHTMLTable` serializers; the HTML export is a fully self-contained file with summary chips and styled table. Button is enabled whenever there are diff results, disabled otherwise.
+
+### Notes
+
+- `index.html` regenerated from `json_compare.html` + FEEDBACK delta. Parity test confirms identical outside FEEDBACK markers and CSP line.
+
+---
+
 ## [2.4] — 2026-06-10
 
 Post-validation fixes: declined-repair silent failure, index-parity test, mobile 390 px visual pass, repo hygiene.
