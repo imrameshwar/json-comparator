@@ -133,8 +133,10 @@ describe("tokenizeJSON — minify helpers (pure logic)", () => {
   });
 });
 
-// E-5: highlight gating logic — mirrors the guard in refreshHighlight / refreshLineNums.
+// E-5: highlight gating logic — mirrors the guard in refreshHighlight.
 // The production code uses: `ta.value.length > MAX_HIGHLIGHT && !forceHighlight`
+// to gate ONLY the syntax-colour overlay. Line numbers (refreshLineNums) always
+// render regardless of size, so this guard no longer applies to the gutter.
 const MAX_HIGHLIGHT = 80_000;
 
 function shouldHighlight(len, force) {

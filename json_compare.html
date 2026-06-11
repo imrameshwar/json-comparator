@@ -477,13 +477,17 @@
      INSIDE the textarea. */
   .editor-wrap { display: grid; height: var(--editor-h); resize: vertical; overflow: hidden; }
   .editor-wrap > * { grid-row: 1; grid-column: 2; height: 100%; min-height: 0; max-height: none; box-sizing: border-box; }
+  /* No-wrap + horizontal scroll (like every code editor): one logical line ==
+     one visual row, so the line-number gutter stays aligned no matter how long
+     a line gets. The textarea (wrap="off") and this overlay share the same
+     whitespace model and scroll left/right together. */
   .editor-highlight {
     padding: 14px; font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
-    white-space: pre-wrap; word-break: break-all; word-wrap: break-word;
+    white-space: pre;
     pointer-events: none; background: var(--surface); overflow: hidden;
     z-index: 0; margin: 0; border: none;
   }
-  .editor-wrap textarea { background: transparent; color: transparent; caret-color: var(--text); z-index: 1; overflow: auto; resize: none; }
+  .editor-wrap textarea { background: transparent; color: transparent; caret-color: var(--text); z-index: 1; overflow: auto; resize: none; white-space: pre; word-wrap: normal; }
   .editor-wrap textarea::placeholder { color: var(--text-3); }
   /* Large-input fallback: skip highlight and show text normally */
   .editor-wrap.no-hl textarea { background: var(--surface); color: var(--text); }
@@ -675,8 +679,9 @@
     /* match textarea whitespace model */
     white-space: pre; word-break: normal;
   }
-  .editor-wrap.no-hl { grid-template-columns: 0 1fr; }
-  .editor-wrap.no-hl .ln-gutter { display: none; }
+  /* Large-input fallback drops ONLY the syntax-highlight overlay — the line
+     gutter always stays visible. Counting newlines is cheap; only the
+     tokenizer is gated by MAX_HIGHLIGHT. */
 
   /* ---- D-7: Export report dropdown ---- */
   .export-pop-wrap { position: relative; display: inline-flex; }
@@ -875,7 +880,7 @@
         <div class="editor-wrap">
           <div class="ln-gutter" aria-hidden="true" id="srcGutter"></div>
           <pre class="editor-highlight" id="srcHighlight" aria-hidden="true"></pre>
-          <textarea id="source" spellcheck="false" placeholder="Paste or type your Source JSON here…"></textarea>
+          <textarea id="source" wrap="off" spellcheck="false" placeholder="Paste or type your Source JSON here…"></textarea>
         </div>
       </div>
       <!-- P1-3: drag to re-proportion Source/Target (two-way desktop only) -->
@@ -914,7 +919,7 @@
         <div class="editor-wrap">
           <div class="ln-gutter" aria-hidden="true" id="tgtGutter"></div>
           <pre class="editor-highlight" id="tgtHighlight" aria-hidden="true"></pre>
-          <textarea id="target" spellcheck="false" placeholder="Paste or type your Target JSON here…"></textarea>
+          <textarea id="target" wrap="off" spellcheck="false" placeholder="Paste or type your Target JSON here…"></textarea>
         </div>
       </div>
       <!-- T24: Base pane — shown only when 3-Way mode is active -->
@@ -952,7 +957,7 @@
         <div class="editor-wrap">
           <div class="ln-gutter" aria-hidden="true" id="baseGutter"></div>
           <pre class="editor-highlight" id="baseHighlight" aria-hidden="true"></pre>
-          <textarea id="base" spellcheck="false" placeholder='Paste the common ancestor JSON here…'></textarea>
+          <textarea id="base" wrap="off" spellcheck="false" placeholder='Paste the common ancestor JSON here…'></textarea>
         </div>
       </div>
     </div>
@@ -1058,7 +1063,7 @@
       </div>
       <!-- E-5: force syntax highlighting above the 80k-char cutoff -->
       <div class="opt-row">
-        <label class="check" style="font-size:13px" title="Re-enables syntax highlighting and line numbers for inputs larger than 80 000 chars. This can slow down the browser on very large files — use with care."><input type="checkbox" id="forceHighlight"> Force highlight on large inputs <span style="color:var(--text-2);font-size:11px">(⚠ perf)</span></label>
+        <label class="check" style="font-size:13px" title="Re-enables JSON syntax colouring for inputs larger than 80 000 chars (line numbers are always shown). This can slow down the browser on very large files — use with care."><input type="checkbox" id="forceHighlight"> Force highlight on large inputs <span style="color:var(--text-2);font-size:11px">(⚠ perf)</span></label>
       </div>
       <!-- F-4: ignore-paths globs -->
       <div class="opt-row" style="border-top:1px solid var(--border); margin-top:8px; padding-top:10px">
@@ -2623,8 +2628,9 @@ function refreshLineNums(taId) {
   const gutter = _gutterFor(taId);
   const wrap   = ta && ta.closest(".editor-wrap");
   if (!gutter || !wrap || !ta) return;
-  // Respect the 80k-char highlight cutoff (unless the user forces it via E-5 toggle).
-  if (ta.value.length > MAX_HIGHLIGHT && !forceHighlight) { wrap.style.removeProperty("--ln-w"); return; }
+  // Line numbers ALWAYS render — even for very large inputs where the syntax
+  // overlay is skipped for performance. Counting newlines is cheap; only the
+  // tokenizer (refreshHighlight) is gated by MAX_HIGHLIGHT.
   const lines  = (ta.value.match(/\n/g) || []).length + 1;
   const digits = String(lines).length;
   // Dynamic gutter width: room for the digits + padding (char ~7.5px at 12.5px monospace).
@@ -4604,8 +4610,8 @@ document.getElementById("phCompare").addEventListener("click", () => {
   if (src) { src.focus(); document.querySelector(".panes").scrollIntoView({ behavior: "smooth", block: "start" }); }
 });
 
-document.getElementById("source").addEventListener("input", () => { updateCounts(); scheduleHighlight("source"); if (lastCompared) markResultsStale(); });
-document.getElementById("target").addEventListener("input", () => { updateCounts(); scheduleHighlight("target"); if (lastCompared) markResultsStale(); });
+document.getElementById("source").addEventListener("input", () => { updateCounts(); scheduleHighlight("source"); scheduleAutosave(); if (lastCompared) markResultsStale(); });
+document.getElementById("target").addEventListener("input", () => { updateCounts(); scheduleHighlight("target"); scheduleAutosave(); if (lastCompared) markResultsStale(); });
 
 // Editors are height-bounded (--editor-h); large documents scroll INSIDE the
 // editor. Keep the syntax-highlight overlay aligned by mirroring the textarea's
@@ -4620,7 +4626,71 @@ document.querySelectorAll(".editor-wrap").forEach(wrap => {
     pre.scrollLeft = ta.scrollLeft;
     if (gutter) gutter.scrollTop = ta.scrollTop;  // D-6: keep line numbers in sync
   }, { passive: true });
+  // Proper-editor key handling: Tab indents (Shift+Tab outdents) instead of
+  // moving focus out of the editor. Multi-line selections are indented as a
+  // block. document.execCommand keeps the native undo stack intact.
+  ta.addEventListener("keydown", e => handleEditorTab(e, ta));
 });
+
+// Tab / Shift+Tab indentation for a JSON editor textarea.
+function handleEditorTab(e, ta) {
+  if (e.key !== "Tab" || e.altKey || e.ctrlKey || e.metaKey) return;
+  e.preventDefault();
+  const unit  = getIndent();                 // "  " | "   " | "    " | "\t"
+  const val   = ta.value;
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  const selMultiline = val.slice(start, end).includes("\n");
+
+  // Simple case: a caret (or single-line selection) + Tab → insert one unit.
+  if (!e.shiftKey && !selMultiline) {
+    if (!_execInsert(ta, unit)) {
+      ta.setRangeText(unit, start, end, "end");
+    }
+    afterEditorEdit(ta);
+    return;
+  }
+
+  // Block (un)indent: operate on every line the selection touches.
+  const lineStart = val.lastIndexOf("\n", start - 1) + 1;
+  const blockEnd  = end > start && val[end - 1] === "\n" ? end - 1 : end;
+  const before    = val.slice(0, lineStart);
+  const block     = val.slice(lineStart, end);
+  const lines     = block.split("\n");
+  let added = 0, firstDelta = 0;
+  const out = lines.map((ln, i) => {
+    if (e.shiftKey) {
+      // Outdent: strip one indent unit (a tab, or up to unit.length spaces).
+      let removed = 0;
+      if (ln.startsWith("\t")) { ln = ln.slice(1); removed = 1; }
+      else { const m = ln.match(/^ {1,}/); if (m) { const k = Math.min(m[0].length, unit.length || 2); ln = ln.slice(k); removed = k; } }
+      if (i === 0) firstDelta = -removed;
+      added -= removed;
+    } else {
+      ln = unit + ln;
+      if (i === 0) firstDelta = unit.length;
+      added += unit.length;
+    }
+    return ln;
+  });
+  ta.value = before + out.join("\n") + val.slice(end);
+  ta.selectionStart = Math.max(lineStart, start + firstDelta);
+  ta.selectionEnd   = end + added;
+  afterEditorEdit(ta);
+}
+
+// Try the (deprecated but undo-preserving) execCommand insertText path.
+function _execInsert(ta, text) {
+  try { return document.execCommand && document.execCommand("insertText", false, text); }
+  catch (_) { return false; }
+}
+
+// Refresh counts / highlight / autosave after a programmatic editor edit.
+function afterEditorEdit(ta) {
+  updateCounts();
+  refreshHighlight(ta.id);
+  scheduleAutosave();
+  if (lastCompared) markResultsStale();
+}
 
 // D-8: Gate the 3-Way tab — only show when the Base pane has content.
 // If in 3-Way mode and Base is cleared, fall back to tree view.
@@ -4640,6 +4710,7 @@ document.getElementById("base").addEventListener("input", () => {
   const el = document.getElementById("baseCount");
   if (el) el.textContent = _formatBytes(len);
   if (lastCompared && viewMode === "3way") renderView();
+  scheduleAutosave();
   update3WayTabVisibility();
 });
 
@@ -4671,6 +4742,7 @@ function resetSession() {
   document.getElementById("resultsWrap").classList.add("hidden");
   document.getElementById("placeholder").classList.remove("hidden");
   expandInputs();   // un-collapse editors + focus Source
+  clearAutosave();  // forget the restored-on-refresh snapshot — fresh start
   toast("New session");
 }
 document.getElementById("newSessionBtn").addEventListener("click", () => {
@@ -4683,6 +4755,49 @@ document.getElementById("newSessionBtn").addEventListener("click", () => {
     resetSession();
   }
 });
+
+/* ============ AUTOSAVE (per-tab, survives refresh) ============
+ * The Source / Target / Base text is mirrored into sessionStorage so a page
+ * *refresh* (same tab) restores exactly what you were editing. sessionStorage
+ * is scoped to the tab: a brand-new tab starts empty, and "New session" clears
+ * it — so unrelated tabs and fresh starts stay clean. Nothing leaves the
+ * browser. Writes are wrapped in try/catch (file:// and private mode may block
+ * storage, and very large docs can exceed the ~5 MB quota) and fail silently.
+ */
+const AUTOSAVE_KEY = "jsoncompare.autosave.v1";
+let _autosaveTimer = null;
+function _editorText(id) { const el = document.getElementById(id); return el ? el.value : ""; }
+function autosaveNow() {
+  try {
+    const src = _editorText("source"), tgt = _editorText("target"), base = _editorText("base");
+    if (!src && !tgt && !base) { sessionStorage.removeItem(AUTOSAVE_KEY); return; }
+    sessionStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ src, tgt, base }));
+  } catch (e) { /* storage blocked or over quota — refresh-restore just won't be available */ }
+}
+function scheduleAutosave() { clearTimeout(_autosaveTimer); _autosaveTimer = setTimeout(autosaveNow, 400); }
+function clearAutosave() { try { sessionStorage.removeItem(AUTOSAVE_KEY); } catch (e) {} }
+function restoreAutosave() {
+  // A shared-URL comparison (#state=…) owns the load — never override it.
+  if (/(^|[#&])state=/.test(location.hash)) return false;
+  let saved;
+  try {
+    const raw = sessionStorage.getItem(AUTOSAVE_KEY);
+    if (!raw) return false;
+    saved = JSON.parse(raw);
+  } catch (e) { return false; }
+  if (!saved || typeof saved !== "object") return false;
+  const src = document.getElementById("source"), tgt = document.getElementById("target"), base = document.getElementById("base");
+  if (!src || !tgt || !base) return false;
+  if (src.value || tgt.value || base.value) return false;  // don't clobber pre-populated panes
+  if (typeof saved.src  === "string") src.value  = saved.src;
+  if (typeof saved.tgt  === "string") tgt.value  = saved.tgt;
+  if (typeof saved.base === "string") base.value = saved.base;
+  return !!(src.value || tgt.value || base.value);
+}
+// Flush immediately on unload/tab-hide so even non-typed edits (Format, Sort,
+// Paste, Upload, sample, etc.) survive a refresh without per-action wiring.
+window.addEventListener("pagehide", autosaveNow);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") autosaveNow(); });
 
 /* ============ T23: SHAREABLE URL ============
  * Encodes both JSON texts + options into the URL fragment (#state=<base64url>).
@@ -4823,6 +4938,7 @@ document.getElementById("newSessionBtn").addEventListener("click", () => {
       lastCompared = true; selected.clear(); render();
       // Clean the hash so back/refresh doesn't keep re-loading
       history.replaceState(null, "", location.pathname + location.search);
+      autosaveNow();  // persist so a refresh keeps the restored docs (hash is now gone)
       toast("Comparison restored from shared URL");
     } catch (e) {
       // Invalid/corrupt URL state — silently ignore
@@ -6314,10 +6430,15 @@ if (typeof ResizeObserver !== "undefined") {
 window.addEventListener("resize", syncStickyOffsets, { passive: true });
 syncStickyOffsets();
 
+// Restore the last-edited docs from this tab's sessionStorage (survives a
+// refresh; cleared on a new tab or "New session"). Skipped when a shared-URL
+// comparison is being loaded — that path owns the panes.
+const _restored = restoreAutosave();
 updateCounts();
 updateLibCount();
 refreshBothHighlights();
 update3WayTabVisibility();  // D-8: gate 3-Way tab on startup
+if (_restored) toast("Restored your last edits");
 </script>
 </body>
 </html>
