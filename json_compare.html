@@ -566,6 +566,11 @@
   @media (max-width: 560px) {
     .wrap { padding: 0 14px 48px; }
     .appbar-inner { padding: 12px 14px; gap: 10px; }
+    /* Appbar: keep icon buttons at their fixed 36×36 size and prevent the title
+       from pushing them off-screen. h1 truncates with an ellipsis if needed. */
+    .appbar-inner .icon-btn { flex: none; }
+    .titles { min-width: 0; overflow: hidden; }
+    .titles h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     /* one scrollable row of pane tools — Copy/Clear stay reachable without stacking */
     .pane-tools { flex-wrap: nowrap; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
     .pane-head .mini { padding: 6px 9px; flex: none; }

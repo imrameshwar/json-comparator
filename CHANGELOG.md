@@ -54,6 +54,11 @@ Post-validation fixes: declined-repair silent failure, index-parity test, mobile
 
 - **`tests/index-parity.test.js`** — automated parity guard: asserts that `index.html` is byte-identical to `json_compare.html` outside the FEEDBACK:START/END-marked blocks and the one permitted CSP `connect-src` line difference. Both `/* FEEDBACK:START */` (CSS/JS) and `<!-- FEEDBACK:START -->` (HTML) markers are now present in `index.html`, fencing the feedback widget delta. The test fails if the files drift anywhere outside those markers.
 
+### Fixed (mobile)
+
+- **Appbar icon buttons no longer shrink below 36×36 px at 390 px** — without `flex: none`, the four appbar icon buttons (help, save, library, theme) could be compressed by the flexbox algorithm at very narrow widths. Added `.appbar-inner .icon-btn { flex: none; }` in the ≤560 px breakpoint.
+- **Page title truncates instead of overflowing at 390 px** — the `.titles` block lacked `min-width: 0; overflow: hidden` and the `h1` lacked `white-space: nowrap; text-overflow: ellipsis`, so "JSON Comparator" could push the appbar wider than the viewport or compress the icon buttons. The heading now clips cleanly with an ellipsis when space is tight.
+
 ---
 
 ## [2.3] — 2026-06-10
