@@ -153,17 +153,7 @@
   .tw-action-bar-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin-right: 2px; }
   .pane { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden; transition: border-color var(--transition), box-shadow var(--transition); }
   .pane:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
-  .pane-head { /* FEEDBACK:START */
-  .form-row textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 13.5px; font-family: var(--font); resize: vertical; min-height: 96px; line-height: 1.5; }
-  .form-row textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
-  #feedbackModal { z-index: 65; }
-  .fb-intro { margin: 0 0 14px; font-size: 13px; color: var(--text-2); line-height: 1.5; }
-  .fb-opt { font-weight: 400; color: var(--text-2); }
-  .fb-github { margin: 2px 0 0; font-size: 12.5px; color: var(--text-2); }
-  .fb-github a { color: var(--accent); text-decoration: none; font-weight: 600; }
-  .fb-github a:hover { text-decoration: underline; }
-/* FEEDBACK:END */
-display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+  .pane-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
   .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .pane.source .dot { background: var(--removed); }
   .pane.target .dot { background: var(--added); }
@@ -383,6 +373,16 @@ display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 
   .form-row label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-2); margin-bottom: 5px; }
   .form-row input, .form-row select { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 13.5px; font-family: var(--font); }
   .form-row input:focus, .form-row select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+/* FEEDBACK:START */
+  .form-row textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 13.5px; font-family: var(--font); resize: vertical; min-height: 96px; line-height: 1.5; }
+  .form-row textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+  #feedbackModal { z-index: 65; }
+  .fb-intro { margin: 0 0 14px; font-size: 13px; color: var(--text-2); line-height: 1.5; }
+  .fb-opt { font-weight: 400; color: var(--text-2); }
+  .fb-github { margin: 2px 0 0; font-size: 12.5px; color: var(--text-2); }
+  .fb-github a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  .fb-github a:hover { text-decoration: underline; }
+/* FEEDBACK:END */
 
   .state { padding: 56px 24px; text-align: center; }
   .state svg { width: 40px; height: 40px; color: var(--text-3); margin-bottom: 12px; }
@@ -829,12 +829,12 @@ display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 
         </button>
         <span class="badge-count hidden" id="libCount">0</span>
       </span>
-      <button c<!-- FEEDBACK:START -->
+<!-- FEEDBACK:START -->
       <button class="icon-btn" id="feedbackBtn" title="Send feedback" aria-label="Send feedback" aria-haspopup="dialog">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
       </button>
 <!-- FEEDBACK:END -->
-lass="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
+      <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
@@ -972,34 +972,7 @@ lass="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
       </div>
     </div>
 
-    <div class=<!-- FEEDBACK:START -->
-    <div id="feedbackModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
-      <div class="modal" style="width:min(480px,100%)">
-        <div class="modal-head">
-          <h3 id="feedbackModalTitle">Send feedback</h3>
-          <button class="close" id="feedbackClose" aria-label="Close feedback dialog">×</button>
-        </div>
-        <div class="modal-body">
-          <p class="fb-intro">Found a bug, hit an edge case, or have an idea? Tell me — it goes straight to my inbox.</p>
-          <div class="form-row">
-            <label for="fbMessage">Your feedback</label>
-            <textarea id="fbMessage" rows="5" placeholder="What's working, what's broken, what you'd love to see…"></textarea>
-          </div>
-          <div class="form-row">
-            <label for="fbEmail">Your email <span class="fb-opt">(optional — so I can reply)</span></label>
-            <input id="fbEmail" type="email" placeholder="you@example.com" autocomplete="email">
-          </div>
-          <p class="fb-github">Prefer GitHub? <a href="https://github.com/imrameshwar/json-comparator/issues/new" target="_blank" rel="noopener noreferrer">Open an issue →</a></p>
-        </div>
-        <div class="modal-actions" style="justify-content:flex-end">
-          <button class="btn ghost sm" id="fbCancel" type="button">Cancel</button>
-          <button class="btn primary sm" id="fbSend" type="button">Send feedback</button>
-        </div>
-      </div>
-    </div>
-
-<!-- FEEDBACK:END -->
-"inputs-bar hidden" id="inputsBar">
+    <div class="inputs-bar hidden" id="inputsBar">
       <svg class="ib-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
       <span class="ib-summary" id="inputsSummary"></span>
       <span class="ib-spacer"></span>
@@ -1341,6 +1314,33 @@ lass="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
       </div>
     </div>
 
+<!-- FEEDBACK:START -->
+    <div id="feedbackModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="feedbackModalTitle">
+      <div class="modal" style="width:min(480px,100%)">
+        <div class="modal-head">
+          <h3 id="feedbackModalTitle">Send feedback</h3>
+          <button class="close" id="feedbackClose" aria-label="Close feedback dialog">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="fb-intro">Found a bug, hit an edge case, or have an idea? Tell me — it goes straight to my inbox.</p>
+          <div class="form-row">
+            <label for="fbMessage">Your feedback</label>
+            <textarea id="fbMessage" rows="5" placeholder="What's working, what's broken, what you'd love to see…"></textarea>
+          </div>
+          <div class="form-row">
+            <label for="fbEmail">Your email <span class="fb-opt">(optional — so I can reply)</span></label>
+            <input id="fbEmail" type="email" placeholder="you@example.com" autocomplete="email">
+          </div>
+          <p class="fb-github">Prefer GitHub? <a href="https://github.com/imrameshwar/json-comparator/issues/new" target="_blank" rel="noopener noreferrer">Open an issue →</a></p>
+        </div>
+        <div class="modal-actions" style="justify-content:flex-end">
+          <button class="btn ghost sm" id="fbCancel" type="button">Cancel</button>
+          <button class="btn primary sm" id="fbSend" type="button">Send feedback</button>
+        </div>
+      </div>
+    </div>
+
+<!-- FEEDBACK:END -->
     <div id="shortcutsPop" class="shortcuts-pop hidden" role="dialog" aria-label="Keyboard shortcuts">
       <h3>Keyboard shortcuts</h3>
       <dl>
@@ -5060,63 +5060,7 @@ function closeDrawer() { closeWithTrap("drawer"); }  // T18
 
 document.getElementById("libBtn").addEventListener("click", openDrawer);
 document.getElementById("drawerClose").addEventListener("click", closeDrawer);
-document.getElementById("drawer").addEventListener("click", e/* FEEDBACK:START */
-/* ============ FEEDBACK ============ */
-// Submissions are relayed to this inbox by FormSubmit.co (no backend needed).
-// The first submission triggers a one-time activation email to this address;
-// click the link in it once and all later submissions are delivered.
-const FEEDBACK_EMAIL = "rameshwars2596@gmail.com";
-function openFeedback() { openWithTrap("feedbackModal", "#fbMessage"); }
-function closeFeedback() { closeWithTrap("feedbackModal"); }
-document.getElementById("feedbackBtn").addEventListener("click", openFeedback);
-document.getElementById("feedbackClose").addEventListener("click", closeFeedback);
-document.getElementById("fbCancel").addEventListener("click", closeFeedback);
-document.getElementById("feedbackModal").addEventListener("click", e => { if (e.target.id === "feedbackModal") closeFeedback(); });
-
-async function sendFeedback() {
-  const msgEl = document.getElementById("fbMessage"), emailEl = document.getElementById("fbEmail");
-  const msg = msgEl.value.trim(), email = emailEl.value.trim();
-  if (!msg) { toast("Please enter some feedback first"); msgEl.focus(); return; }
-  const btn = document.getElementById("fbSend"), label = btn.textContent;
-  btn.disabled = true; btn.textContent = "Sending…";
-  try {
-    const res = await fetch("https://formsubmit.co/ajax/" + FEEDBACK_EMAIL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept": "application/json" },
-      body: JSON.stringify({
-        _subject: "JSON Comparator — new feedback",
-        _captcha: "false",
-        _template: "table",
-        message: msg,
-        replyEmail: email || "(not provided)",
-        page: location.href,
-        userAgent: navigator.userAgent,
-      }),
-    });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    toast("Thanks! Your feedback was sent ✓");
-    msgEl.value = ""; emailEl.value = "";
-    closeFeedback();
-  } catch (err) {
-    // Network/relay failure (or first-time form not yet activated): fall back to
-    // the visitor's own mail client so the message is never lost.
-    toast("Couldn't send directly — opening your email app");
-    const body = encodeURIComponent(msg + (email ? "\n\nReply to: " + email : ""));
-    window.location.href = "mailto:" + FEEDBACK_EMAIL + "?subject=" +
-      encodeURIComponent("JSON Comparator feedback") + "&body=" + body;
-  } finally {
-    btn.disabled = false; btn.textContent = label;
-  }
-}
-document.getElementById("fbSend").addEventListener("click", sendFeedback);
-// Cmd/Ctrl+Enter inside the message box sends; stop it from also triggering Compare.
-document.getElementById("fbMessage").addEventListener("keydown", e => {
-  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); e.stopPropagation(); sendFeedback(); }
-});
-// Close the feedback modal on Escape (mirrors how other modals handle Escape).
-document.addEventListener("keydown", e => { if (e.key === "Escape") closeFeedback(); });
-/* FEEDBACK:END */
- => { if (e.target.id === "drawer") closeDrawer(); });
+document.getElementById("drawer").addEventListener("click", e => { if (e.target.id === "drawer") closeDrawer(); });
 // D-9: newFolderBtn removed from HTML; listener guarded
 (function() {
   const btn = document.getElementById("newFolderBtn");
@@ -5179,6 +5123,62 @@ document.getElementById("saveConfirm").addEventListener("click", () => {
   if (doSave(document.getElementById("saveName").value.trim(), null)) closeSaveModal();
 });
 
+/* FEEDBACK:START */
+/* ============ FEEDBACK ============ */
+// Submissions are relayed to this inbox by FormSubmit.co (no backend needed).
+// The first submission triggers a one-time activation email to this address;
+// click the link in it once and all later submissions are delivered.
+const FEEDBACK_EMAIL = "rameshwars2596@gmail.com";
+function openFeedback() { openWithTrap("feedbackModal", "#fbMessage"); }
+function closeFeedback() { closeWithTrap("feedbackModal"); }
+document.getElementById("feedbackBtn").addEventListener("click", openFeedback);
+document.getElementById("feedbackClose").addEventListener("click", closeFeedback);
+document.getElementById("fbCancel").addEventListener("click", closeFeedback);
+document.getElementById("feedbackModal").addEventListener("click", e => { if (e.target.id === "feedbackModal") closeFeedback(); });
+
+async function sendFeedback() {
+  const msgEl = document.getElementById("fbMessage"), emailEl = document.getElementById("fbEmail");
+  const msg = msgEl.value.trim(), email = emailEl.value.trim();
+  if (!msg) { toast("Please enter some feedback first"); msgEl.focus(); return; }
+  const btn = document.getElementById("fbSend"), label = btn.textContent;
+  btn.disabled = true; btn.textContent = "Sending…";
+  try {
+    const res = await fetch("https://formsubmit.co/ajax/" + FEEDBACK_EMAIL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify({
+        _subject: "JSON Comparator — new feedback",
+        _captcha: "false",
+        _template: "table",
+        message: msg,
+        replyEmail: email || "(not provided)",
+        page: location.href,
+        userAgent: navigator.userAgent,
+      }),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    toast("Thanks! Your feedback was sent ✓");
+    msgEl.value = ""; emailEl.value = "";
+    closeFeedback();
+  } catch (err) {
+    // Network/relay failure (or first-time form not yet activated): fall back to
+    // the visitor's own mail client so the message is never lost.
+    toast("Couldn't send directly — opening your email app");
+    const body = encodeURIComponent(msg + (email ? "\n\nReply to: " + email : ""));
+    window.location.href = "mailto:" + FEEDBACK_EMAIL + "?subject=" +
+      encodeURIComponent("JSON Comparator feedback") + "&body=" + body;
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+}
+document.getElementById("fbSend").addEventListener("click", sendFeedback);
+// Cmd/Ctrl+Enter inside the message box sends; stop it from also triggering Compare.
+document.getElementById("fbMessage").addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); e.stopPropagation(); sendFeedback(); }
+});
+// Close the feedback modal on Escape (mirrors how other modals handle Escape).
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeFeedback(); });
+/* FEEDBACK:END */
 /* ============ T18: ACCESSIBILITY ============ */
 // Focus trap: keep keyboard focus inside `container` while it's open.
 // Returns a cleanup function that removes the listener.
