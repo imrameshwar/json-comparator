@@ -39,8 +39,11 @@
     --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
     --maxw: 1320px;
     /* Editor height is bounded so large documents scroll INSIDE the editor
-       instead of stretching the page and pushing the Compare bar out of reach. */
-    --editor-max: clamp(220px, 46vh, 480px);
+       instead of stretching the page and pushing the Compare bar out of reach.
+       The wrapper owns this height; all layers (textarea, highlight overlay,
+       line gutter) fill it exactly so they never drift out of sync and no
+       blank gap opens up below short content. */
+    --editor-h: clamp(280px, 62vh, 760px);
   }
   [data-theme="light"] {
     --bg: #f6f7f9; --surface: #fff; --surface-2: #f3f4f6; --surface-3: #eceef1;
@@ -455,15 +458,20 @@
   .raw-toggle button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
 
   /* ---- Syntax highlighting + Minify (T15) ---- */
-  .editor-wrap { display: grid; }
-  .editor-wrap > * { grid-row: 1; grid-column: 2; }
+  /* The wrapper owns the height and is the single resizable surface. Every
+     layer fills it exactly (height:100%, no per-child min/max) so the textarea,
+     highlight overlay, and line gutter stay perfectly aligned — no blank gap can
+     open up below the content and both panes always match. Large docs scroll
+     INSIDE the textarea. */
+  .editor-wrap { display: grid; height: var(--editor-h); resize: vertical; overflow: hidden; }
+  .editor-wrap > * { grid-row: 1; grid-column: 2; height: 100%; min-height: 0; max-height: none; box-sizing: border-box; }
   .editor-highlight {
     padding: 14px; font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
     white-space: pre-wrap; word-break: break-all; word-wrap: break-word;
     pointer-events: none; background: var(--surface); overflow: hidden;
-    min-height: 250px; max-height: var(--editor-max); z-index: 0; margin: 0; border: none;
+    z-index: 0; margin: 0; border: none;
   }
-  .editor-wrap textarea { background: transparent; color: transparent; caret-color: var(--text); z-index: 1; min-height: 250px; max-height: var(--editor-max); overflow: auto; }
+  .editor-wrap textarea { background: transparent; color: transparent; caret-color: var(--text); z-index: 1; overflow: auto; resize: none; }
   .editor-wrap textarea::placeholder { color: var(--text-3); }
   /* Large-input fallback: skip highlight and show text normally */
   .editor-wrap.no-hl textarea { background: var(--surface); color: var(--text); }
@@ -3412,7 +3420,7 @@ document.getElementById("phCompare").addEventListener("click", () => {
 document.getElementById("source").addEventListener("input", () => { updateCounts(); scheduleHighlight("source"); if (lastCompared) markResultsStale(); });
 document.getElementById("target").addEventListener("input", () => { updateCounts(); scheduleHighlight("target"); if (lastCompared) markResultsStale(); });
 
-// Editors are height-bounded (--editor-max); large documents scroll INSIDE the
+// Editors are height-bounded (--editor-h); large documents scroll INSIDE the
 // editor. Keep the syntax-highlight overlay aligned by mirroring the textarea's
 // scroll offset onto its sibling <pre>.
 document.querySelectorAll(".editor-wrap").forEach(wrap => {
