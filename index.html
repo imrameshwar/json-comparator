@@ -161,9 +161,9 @@
   .pane-head .side-tag { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
   .pane-tools { margin-left: auto; display: flex; align-items: center; gap: 2px; flex-wrap: wrap; row-gap: 4px; justify-content: flex-end; }
   .pane-head .count { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; margin-right: 4px; white-space: nowrap; }
-  .pane-head .mini { border: none; background: transparent; color: var(--text-2); cursor: pointer; font-size: 12px; padding: 4px 8px; border-radius: 6px; transition: var(--transition); display: inline-flex; align-items: center; gap: 5px; }
-  .pane-head .mini svg { width: 13px; height: 13px; }
-  .pane-head .mini:hover { background: var(--surface-3); color: var(--text); }
+  .pane-head .mini, .pane-head .pane-fs-btn { border: none; background: transparent; color: var(--text-2); cursor: pointer; font-size: 12px; padding: 4px 8px; border-radius: 6px; transition: var(--transition); display: inline-flex; align-items: center; gap: 5px; }
+  .pane-head .mini svg, .pane-head .pane-fs-btn svg { width: 13px; height: 13px; }
+  .pane-head .mini:hover, .pane-head .pane-fs-btn:hover { background: var(--surface-3); color: var(--text); }
   textarea { width: 100%; min-height: 250px; border: none; background: var(--surface); color: var(--text); font-family: var(--mono); font-size: 12.5px; line-height: 1.65; padding: 14px; resize: vertical; display: block; }
   textarea:focus { outline: none; }
   textarea::placeholder { color: var(--text-3); }
@@ -501,6 +501,82 @@
   .editor-wrap textarea::placeholder { color: var(--text-3); }
   /* Large-input fallback: skip highlight and show text normally */
   .editor-wrap.no-hl textarea { background: var(--surface); color: var(--text); }
+
+  /* ============================================================
+     RICH EDITORS — per-pane Code/Tree mode, collapsible JSON
+     viewer, full-screen editing, and Raw-view code folding.
+     ============================================================ */
+
+  /* ---- Pane-head: Code / Tree segmented toggle + full-screen ---- */
+  .pane-modes { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 2px; gap: 1px; }
+  .pm-btn { border: none; background: transparent; cursor: pointer; color: var(--text-3); font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 5px; transition: var(--transition); display: inline-flex; align-items: center; gap: 4px; }
+  .pm-btn svg { width: 12px; height: 12px; }
+  .pm-btn:hover { color: var(--text-2); }
+  .pm-btn.active { background: var(--surface-3); color: var(--text); box-shadow: var(--shadow-sm); }
+  .pane-fs-btn[aria-pressed="true"] { color: var(--accent); background: var(--accent-weak); }
+
+  /* Mode visibility: code mode shows the editor; tree mode shows the viewer. */
+  .pane .jv-view { display: none; }
+  .pane.mode-tree .editor-wrap { display: none; }
+  .pane.mode-tree .jv-view { display: flex; }
+
+  /* ---- Collapsible JSON viewer (read-only, "looks-proper-JSON") ---- */
+  .jv-view { flex-direction: column; height: var(--editor-h); min-height: 0; background: var(--surface); resize: vertical; overflow: hidden; }
+  .jv-bar { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-bottom: 1px solid var(--border); background: var(--surface-2); flex: none; }
+  .jv-allbtn { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 6px; cursor: pointer; transition: var(--transition); }
+  .jv-allbtn:hover { color: var(--text); border-color: var(--border-strong); }
+  .jv-status { margin-left: auto; font-size: 11px; color: var(--text-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .jv-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 10px 16px; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; }
+
+  .jv-node { position: relative; }
+  .jv-row { display: flex; align-items: flex-start; border-radius: 5px; padding: 0 3px; }
+  .jv-head { cursor: pointer; }
+  .jv-head:hover { background: var(--surface-2); }
+  .jv-toggle { flex: none; width: 15px; text-align: center; color: var(--text-3); user-select: none; }
+  .jv-container > .jv-head > .jv-toggle::before { content: "\25be"; }            /* ▾ */
+  .jv-container.collapsed > .jv-head > .jv-toggle::before { content: "\25b8"; }  /* ▸ */
+  .jv-leaf > .jv-toggle, .jv-close-row > .jv-toggle { visibility: hidden; }
+  .jv-key { color: var(--text); font-weight: 600; white-space: pre-wrap; word-break: break-word; }
+  .jv-colon { color: var(--text-3); margin-right: 5px; }
+  .jv-bracket { color: var(--text-2); }
+  .jv-meta { color: var(--text-3); font-size: 11px; margin-left: 8px; }
+  .jv-fold { color: var(--text-3); }
+  .jv-container:not(.collapsed) > .jv-head > .jv-fold,
+  .jv-container:not(.collapsed) > .jv-head > .jv-meta { display: none; }
+  .jv-container.collapsed > .jv-children,
+  .jv-container.collapsed > .jv-close-row { display: none; }
+  .jv-children { padding-left: 16px; border-left: 1px solid var(--border); margin-left: 7px; }
+  .jv-head:hover + .jv-children { border-left-color: var(--border-strong); }
+  .jv-comma { color: var(--text-3); }
+  .jv-val { white-space: pre-wrap; word-break: break-word; }
+  .jv-val.t-string  { color: var(--string); }
+  .jv-val.t-number  { color: var(--number); }
+  .jv-val.t-boolean { color: var(--bool); }
+  .jv-val.t-null    { color: var(--null); }
+  .jv-msg { padding: 22px 18px; color: var(--text-3); font-family: var(--font); font-size: 13px; text-align: center; line-height: 1.6; }
+  .jv-msg .jv-err { color: var(--removed); font-family: var(--mono); font-size: 12px; display: block; margin-top: 8px; word-break: break-word; }
+  .jv-msg .jv-fixbtn { margin-top: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 12.5px; font-weight: 600; padding: 6px 14px; border-radius: 7px; cursor: pointer; }
+  .jv-msg .jv-fixbtn:hover { color: var(--text); border-color: var(--border-strong); }
+
+  /* ---- Per-pane full-screen editing ---- */
+  .pane.fullscreen {
+    position: fixed; inset: 0; z-index: 60; margin: 0; width: auto; max-width: none;
+    border: none; border-radius: 0; box-shadow: none; background: var(--bg);
+    display: flex; flex-direction: column;
+  }
+  .pane.fullscreen .pane-head { flex: none; }
+  .pane.fullscreen .editor-wrap,
+  .pane.fullscreen .jv-view { flex: 1 1 auto; height: auto; min-height: 0; resize: none; }
+  body.pane-maximized { overflow: hidden; }
+  body.pane-maximized .appbar { z-index: 1; }
+
+  /* ---- Raw-view code folding (collapse JSON blocks in the diff) ---- */
+  .raw-fold { flex: none; width: 15px; text-align: center; color: var(--text-3); user-select: none; line-height: 1.55em; font-size: 10px; }
+  .raw-line.r-open > .raw-fold { cursor: pointer; }
+  .raw-line.r-open > .raw-fold:hover { color: var(--accent); }
+  .raw-line.r-open > .raw-fold::before { content: "\25be"; }            /* ▾ */
+  .raw-line.r-open.r-collapsed > .raw-fold::before { content: "\25b8"; } /* ▸ */
+  .raw-line.r-fold-hidden { display: none; }
 
   /* ---- Navigation (T12) ---- */
   .nav-ctrl { display: flex; align-items: center; gap: 2px; }
@@ -861,11 +937,23 @@
 
   <div class="wrap" id="main-content" role="main">
     <div class="panes">
-      <div class="pane source">
+      <div class="pane source mode-code">
         <div class="pane-head">
           <span class="dot"></span><span class="name">Source</span><span class="side-tag">before</span>
           <span class="pane-tools">
             <span class="count" id="srcCount">0 chars</span>
+            <span class="pane-modes" role="group" aria-label="Source view mode">
+              <button class="pm-btn active" data-target="source" data-mode="code" aria-pressed="true" title="Editable code view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Code
+              </button>
+              <button class="pm-btn" data-target="source" data-mode="tree" aria-pressed="false" title="Collapsible tree view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h8M3 12h12M3 19h6"/><circle cx="18" cy="5" r="2"/><circle cx="20" cy="12" r="2"/></svg>Tree
+              </button>
+            </span>
+            <button class="pane-fs-btn" data-target="source" aria-pressed="false" title="Full-screen editing (Esc to exit)" aria-label="Toggle full screen for Source">
+              <svg class="fs-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              <svg class="fs-off hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h3v3M20 10h-3V7M14 4v3h3M10 20v-3H7"/></svg>
+            </button>
             <button class="mini" data-target="source" data-act="upload" title="Load a .json file into this pane">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>Upload
             </button>
@@ -897,14 +985,34 @@
           <pre class="editor-highlight" id="srcHighlight" aria-hidden="true"></pre>
           <textarea id="source" wrap="off" spellcheck="false" placeholder="Paste or type your Source JSON here…"></textarea>
         </div>
+        <div class="jv-view" data-target="source" aria-label="Source tree view">
+          <div class="jv-bar">
+            <button class="jv-allbtn" data-target="source" data-jv-act="expand">Expand all</button>
+            <button class="jv-allbtn" data-target="source" data-jv-act="collapse">Collapse all</button>
+            <span class="jv-status" data-jv-status="source"></span>
+          </div>
+          <div class="jv-scroll" id="srcTree"></div>
+        </div>
       </div>
       <!-- P1-3: drag to re-proportion Source/Target (two-way desktop only) -->
       <div class="pane-resizer" id="paneResizer" role="separator" aria-orientation="vertical" aria-label="Resize Source and Target panels" tabindex="0" aria-valuemin="20" aria-valuemax="80" aria-valuenow="50" title="Drag to resize · double-click to reset"></div>
-      <div class="pane target">
+      <div class="pane target mode-code">
         <div class="pane-head">
           <span class="dot"></span><span class="name">Target</span><span class="side-tag">after</span>
           <span class="pane-tools">
             <span class="count" id="tgtCount">0 chars</span>
+            <span class="pane-modes" role="group" aria-label="Target view mode">
+              <button class="pm-btn active" data-target="target" data-mode="code" aria-pressed="true" title="Editable code view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Code
+              </button>
+              <button class="pm-btn" data-target="target" data-mode="tree" aria-pressed="false" title="Collapsible tree view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h8M3 12h12M3 19h6"/><circle cx="18" cy="5" r="2"/><circle cx="20" cy="12" r="2"/></svg>Tree
+              </button>
+            </span>
+            <button class="pane-fs-btn" data-target="target" aria-pressed="false" title="Full-screen editing (Esc to exit)" aria-label="Toggle full screen for Target">
+              <svg class="fs-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              <svg class="fs-off hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h3v3M20 10h-3V7M14 4v3h3M10 20v-3H7"/></svg>
+            </button>
             <button class="mini" data-target="target" data-act="upload" title="Load a .json file into this pane">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>Upload
             </button>
@@ -936,13 +1044,33 @@
           <pre class="editor-highlight" id="tgtHighlight" aria-hidden="true"></pre>
           <textarea id="target" wrap="off" spellcheck="false" placeholder="Paste or type your Target JSON here…"></textarea>
         </div>
+        <div class="jv-view" data-target="target" aria-label="Target tree view">
+          <div class="jv-bar">
+            <button class="jv-allbtn" data-target="target" data-jv-act="expand">Expand all</button>
+            <button class="jv-allbtn" data-target="target" data-jv-act="collapse">Collapse all</button>
+            <span class="jv-status" data-jv-status="target"></span>
+          </div>
+          <div class="jv-scroll" id="tgtTree"></div>
+        </div>
       </div>
       <!-- T24: Base pane — shown only when 3-Way mode is active -->
-      <div class="pane base hidden" id="basePane">
+      <div class="pane base hidden mode-code" id="basePane">
         <div class="pane-head">
           <span class="dot"></span><span class="name">Base</span><span class="side-tag">ancestor</span>
           <span class="pane-tools">
             <span class="count" id="baseCount">0 chars</span>
+            <span class="pane-modes" role="group" aria-label="Base view mode">
+              <button class="pm-btn active" data-target="base" data-mode="code" aria-pressed="true" title="Editable code view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Code
+              </button>
+              <button class="pm-btn" data-target="base" data-mode="tree" aria-pressed="false" title="Collapsible tree view">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h8M3 12h12M3 19h6"/><circle cx="18" cy="5" r="2"/><circle cx="20" cy="12" r="2"/></svg>Tree
+              </button>
+            </span>
+            <button class="pane-fs-btn" data-target="base" aria-pressed="false" title="Full-screen editing (Esc to exit)" aria-label="Toggle full screen for Base">
+              <svg class="fs-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M16 21h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              <svg class="fs-off hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14h3v3M20 10h-3V7M14 4v3h3M10 20v-3H7"/></svg>
+            </button>
             <button class="mini" data-target="base" data-act="upload" title="Load a .json file into this pane">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>Upload
             </button>
@@ -973,6 +1101,14 @@
           <div class="ln-gutter" aria-hidden="true" id="baseGutter"></div>
           <pre class="editor-highlight" id="baseHighlight" aria-hidden="true"></pre>
           <textarea id="base" wrap="off" spellcheck="false" placeholder='Paste the common ancestor JSON here…'></textarea>
+        </div>
+        <div class="jv-view" data-target="base" aria-label="Base tree view">
+          <div class="jv-bar">
+            <button class="jv-allbtn" data-target="base" data-jv-act="expand">Expand all</button>
+            <button class="jv-allbtn" data-target="base" data-jv-act="collapse">Collapse all</button>
+            <span class="jv-status" data-jv-status="base"></span>
+          </div>
+          <div class="jv-scroll" id="baseTree"></div>
         </div>
       </div>
     </div>
@@ -1373,9 +1509,18 @@
             <div class="help-view-grid">
               <div class="help-view-card"><b>Tree</b><span>Collapsible JSON structure. Color-coded: green = added, red = removed, amber = changed value, violet = contains changes.</span></div>
               <div class="help-view-card"><b>Table</b><span>Flat list of every change with its path (<code>$.address.geo.lng</code>), old value, and new value.</span></div>
-              <div class="help-view-card"><b>Raw</b><span>Side-by-side (or unified) text diff with word-level highlights and scroll sync.</span></div>
+              <div class="help-view-card"><b>Raw</b><span>Side-by-side (or unified) text diff with word-level highlights and scroll sync. Click the ▾ in the gutter (or <b>Collapse all</b>) to fold JSON blocks.</span></div>
               <div class="help-view-card"><b>3-Way</b><span>Three-way merge view (Base / Source / Target). Conflicts show <b>L / B / R</b> buttons — click to choose which value wins. Non-conflicting changes auto-merge (left-only → L, right-only → R, both-same → L). Click <b>Export merged</b> (⬇ Download or ⎘ Copy) to get the resolved JSON. Appears when the Base pane has content.</span></div>
             </div>
+          </div>
+          <div class="help-section">
+            <h4>Editing JSON — Code &amp; Tree views</h4>
+            <p>Each input pane (Source / Target / Base) has two views, toggled by the <b>Code</b> / <b>Tree</b> switch in the pane header:</p>
+            <ul>
+              <li><b>Code</b> — the editable, syntax-highlighted editor with line numbers and Tab indentation.</li>
+              <li><b>Tree</b> — a read-only, syntax-coloured, <b>collapsible</b> JSON view. Click any object/array row to fold or unfold it, or use <b>Expand all</b> / <b>Collapse all</b>. Invalid JSON shows a parse error with a one-click jump back to Code.</li>
+            </ul>
+            <p>Click the <b>⤢ full-screen</b> icon in any pane header to expand that pane to fill the window for focused editing — press <kbd>Esc</kbd> or the icon again to return to the normal split view.</p>
           </div>
           <div class="help-section">
             <h4>3-Way Merge (F-3)</h4>
@@ -2689,12 +2834,15 @@ function refreshHighlight(taId) {
   const wrap = ta ? ta.closest(".editor-wrap") : null;
   const pre  = document.getElementById(taId === "source" ? "srcHighlight" : taId === "target" ? "tgtHighlight" : "baseHighlight");
   if (!pre || !wrap) return;
-  if (ta.value.length > MAX_HIGHLIGHT && !forceHighlight) { wrap.classList.add("no-hl"); pre.innerHTML = ""; refreshLineNums(taId); return; }
+  if (ta.value.length > MAX_HIGHLIGHT && !forceHighlight) { wrap.classList.add("no-hl"); pre.innerHTML = ""; refreshLineNums(taId); _maybeRefreshPaneTree(taId); return; }
   wrap.classList.remove("no-hl");
   pre.innerHTML = tokenizeJSON(ta.value) + "\n";  // trailing \n prevents last-line collapse
   refreshLineNums(taId);
   // E-1: re-inject find highlights whenever the overlay is rebuilt
   _findApplyToHighlightPre(taId);
+  // Rich editors: keep the collapsible tree fresh after any programmatic edit
+  // (Format / Sort / Minify / paste / file-load) while the pane shows Tree mode.
+  _maybeRefreshPaneTree(taId);
 }
 const _hlTimers = {};
 function scheduleHighlight(taId) {
@@ -2702,6 +2850,190 @@ function scheduleHighlight(taId) {
   _hlTimers[taId] = setTimeout(() => refreshHighlight(taId), 60);
 }
 function refreshBothHighlights() { refreshHighlight("source"); refreshHighlight("target"); refreshHighlight("base"); }
+
+/* ============================================================
+ * RICH EDITORS — collapsible JSON tree viewer + per-pane modes
+ * + full-screen editing.
+ *
+ * Each input pane has two views:
+ *   • Code  — the syntax-highlighted, editable textarea (default).
+ *   • Tree  — a read-only, collapsible, syntax-coloured JSON tree
+ *             (renderJSONTree) that "looks proper JSON" and lets the
+ *             user fold/expand any object or array.
+ * Either view can be expanded to full screen for focused editing.
+ * ============================================================ */
+
+// Render one JSON value as collapsible HTML. `keyHtml` is the already-escaped,
+// already-quoted property label ("…": ) or "" for array items / the root.
+// `isLast` controls the trailing comma so the output reads as proper JSON.
+function _jvNode(value, keyHtml, isLast) {
+  const comma = isLast ? "" : '<span class="jv-comma">,</span>';
+  const t = typeName(value);
+  if (t === "object" || t === "array") {
+    const isArr = t === "array";
+    const open = isArr ? "[" : "{";
+    const close = isArr ? "]" : "}";
+    const entries = isArr
+      ? value.map(v => ["", v])
+      : Object.keys(value).map(k => [`<span class="jv-key">${escapeHtml(JSON.stringify(k))}</span><span class="jv-colon">:</span>`, value[k]]);
+    if (entries.length === 0) {
+      return `<div class="jv-node"><div class="jv-row jv-leaf"><span class="jv-toggle"></span>${keyHtml}<span class="jv-bracket">${open}${close}</span>${comma}</div></div>`;
+    }
+    const count = entries.length;
+    const label = isArr ? `${count} item${count !== 1 ? "s" : ""}` : `${count} key${count !== 1 ? "s" : ""}`;
+    let kids = "";
+    for (let i = 0; i < entries.length; i++) {
+      kids += _jvNode(entries[i][1], entries[i][0], i === entries.length - 1);
+    }
+    return `<div class="jv-node jv-container">` +
+      `<div class="jv-row jv-head">` +
+        `<span class="jv-toggle" aria-hidden="true"></span>${keyHtml}` +
+        `<span class="jv-bracket">${open}</span>` +
+        `<span class="jv-fold">…<span class="jv-bracket">${close}</span>${comma}</span>` +
+        `<span class="jv-meta">${label}</span>` +
+      `</div>` +
+      `<div class="jv-children">${kids}</div>` +
+      `<div class="jv-row jv-close-row"><span class="jv-toggle"></span><span class="jv-bracket">${close}</span>${comma}</div>` +
+    `</div>`;
+  }
+  // Leaf scalar.
+  const disp = t === "string" ? JSON.stringify(value) : String(value);
+  return `<div class="jv-node"><div class="jv-row jv-leaf"><span class="jv-toggle"></span>${keyHtml}<span class="jv-val t-${t}">${escapeHtml(disp)}</span>${comma}</div></div>`;
+}
+function renderJSONTree(value) { return _jvNode(value, "", true); }
+
+const _JV_MAX = 500_000;       // chars — above this the tree preview is opt-in (protects the browser)
+const _jvForce = new Set();    // panes the user chose to render anyway
+const _PANE_TREE_ID = { source: "srcTree", target: "tgtTree", base: "baseTree" };
+function _paneEl(target)      { return document.querySelector(`.pane.${target === "base" ? "base" : target}`) || document.getElementById(target)?.closest(".pane"); }
+function _paneTreeScroll(t)   { return document.getElementById(_PANE_TREE_ID[t]); }
+function _paneTreeStatus(t)   { return document.querySelector(`[data-jv-status="${t}"]`); }
+
+// (Re)build the collapsible tree for one pane from its textarea contents.
+function renderPaneTree(target) {
+  const ta = document.getElementById(target);
+  const scroll = _paneTreeScroll(target);
+  const status = _paneTreeStatus(target);
+  if (!ta || !scroll) return;
+  const text = ta.value;
+  if (!text.trim()) {
+    scroll.innerHTML = `<div class="jv-msg">Nothing to preview yet.<br>Paste, type, or upload JSON in Code view.</div>`;
+    if (status) status.textContent = "";
+    return;
+  }
+  if (text.length > _JV_MAX && !_jvForce.has(target)) {
+    scroll.innerHTML = `<div class="jv-msg">This document is large (${_formatBytes(text.length)}). ` +
+      `Rendering the full collapsible tree may slow the browser.` +
+      `<button class="jv-fixbtn" data-jv-force="${target}">Render tree anyway</button></div>`;
+    if (status) status.textContent = "large";
+    return;
+  }
+  let value;
+  try {
+    const parser = _getParser() || ((s) => JSON.parse(s));
+    value = parser(text);
+  } catch (e) {
+    scroll.innerHTML = `<div class="jv-msg">Can't show the tree — this isn't valid JSON.` +
+      `<span class="jv-err">${escapeHtml(e.message)}</span>` +
+      `<button class="jv-fixbtn" data-jv-fix="${target}">Switch to Code to fix</button></div>`;
+    if (status) status.textContent = "invalid";
+    return;
+  }
+  scroll.innerHTML = renderJSONTree(value);
+  if (status) {
+    const n = scroll.querySelectorAll(".jv-container").length;
+    status.textContent = n ? `${n} foldable node${n !== 1 ? "s" : ""}` : "1 value";
+  }
+}
+
+// Re-render a pane's tree only when that pane is currently showing Tree mode.
+function _maybeRefreshPaneTree(target) {
+  const pane = _paneEl(target);
+  if (pane && pane.classList.contains("mode-tree")) renderPaneTree(target);
+}
+
+// Switch one pane between "code" and "tree" views.
+function setPaneMode(target, mode) {
+  const pane = _paneEl(target);
+  if (!pane) return;
+  pane.classList.toggle("mode-tree", mode === "tree");
+  pane.classList.toggle("mode-code", mode !== "tree");
+  pane.querySelectorAll(".pm-btn").forEach(btn => {
+    const on = btn.dataset.mode === mode;
+    btn.classList.toggle("active", on);
+    btn.setAttribute("aria-pressed", String(on));
+  });
+  if (mode === "tree") renderPaneTree(target);
+  else { const ta = document.getElementById(target); if (ta) ta.focus(); }
+}
+
+// Toggle full-screen editing for one pane (force optional: true = enter).
+function togglePaneFullscreen(target, force) {
+  const pane = _paneEl(target);
+  if (!pane) return;
+  const on = force === undefined ? !pane.classList.contains("fullscreen") : force;
+  // Only one pane is full-screen at a time.
+  if (on) document.querySelectorAll(".pane.fullscreen").forEach(p => { if (p !== pane) exitFullscreenPane(p); });
+  pane.classList.toggle("fullscreen", on);
+  document.body.classList.toggle("pane-maximized", on);
+  const btn = pane.querySelector(".pane-fs-btn");
+  if (btn) {
+    btn.setAttribute("aria-pressed", String(on));
+    btn.title = on ? "Exit full screen (Esc)" : "Full-screen editing (Esc to exit)";
+    const onIc = btn.querySelector(".fs-on"), offIc = btn.querySelector(".fs-off");
+    if (onIc) onIc.classList.toggle("hidden", on);
+    if (offIc) offIc.classList.toggle("hidden", !on);
+  }
+  if (on) {
+    if (pane.classList.contains("mode-tree")) renderPaneTree(target);
+    else { const ta = document.getElementById(target); if (ta) setTimeout(() => ta.focus(), 0); }
+  }
+}
+function exitFullscreenPane(pane) {
+  pane.classList.remove("fullscreen");
+  const btn = pane.querySelector(".pane-fs-btn");
+  if (btn) {
+    btn.setAttribute("aria-pressed", "false");
+    btn.title = "Full-screen editing (Esc to exit)";
+    const onIc = btn.querySelector(".fs-on"), offIc = btn.querySelector(".fs-off");
+    if (onIc) onIc.classList.remove("hidden");
+    if (offIc) offIc.classList.add("hidden");
+  }
+}
+// Exit every full-screen pane (used by Esc and before a compare collapses inputs).
+function exitAllFullscreen() {
+  let any = false;
+  document.querySelectorAll(".pane.fullscreen").forEach(p => { exitFullscreenPane(p); any = true; });
+  document.body.classList.remove("pane-maximized");
+  return any;
+}
+
+// ---- Wiring: mode toggle, full-screen, fold clicks, expand/collapse all ----
+document.querySelectorAll(".pm-btn").forEach(btn => {
+  btn.addEventListener("click", () => setPaneMode(btn.dataset.target, btn.dataset.mode));
+});
+document.querySelectorAll(".pane-fs-btn").forEach(btn => {
+  btn.addEventListener("click", () => togglePaneFullscreen(btn.dataset.target));
+});
+document.querySelectorAll(".jv-allbtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const scroll = _paneTreeScroll(btn.dataset.target);
+    if (!scroll) return;
+    const collapse = btn.dataset.jvAct === "collapse";
+    scroll.querySelectorAll(".jv-container").forEach(n => n.classList.toggle("collapsed", collapse));
+  });
+});
+// Fold / unfold a node (delegate on each tree scroll container).
+document.querySelectorAll(".jv-scroll").forEach(scroll => {
+  scroll.addEventListener("click", e => {
+    const fix = e.target.closest("[data-jv-fix]");
+    if (fix) { setPaneMode(fix.dataset.jvFix, "code"); return; }
+    const force = e.target.closest("[data-jv-force]");
+    if (force) { _jvForce.add(force.dataset.jvForce); renderPaneTree(force.dataset.jvForce); return; }
+    const head = e.target.closest(".jv-head");
+    if (head && scroll.contains(head)) head.parentElement.classList.toggle("collapsed");
+  });
+});
 
 /* ---- filterChanges (T11) — pure filter for Change[] arrays ----------------
  * Inlined from src/filter.js (same logic, no export keyword).
@@ -3435,7 +3767,12 @@ function renderUnified(srcText, tgtText) {
       const cls = h.op === "added" ? "r-added" : h.op === "removed" ? "r-removed" : "r-equal";
       const sym = h.op === "added" ? "+" : h.op === "removed" ? "−" : " ";
       const ln  = h.op === "added" ? ++tn : h.op === "removed" ? ++sn : (++sn, ++tn, sn);
-      html += `<div class="raw-line ${cls}"><span class="raw-gutter">${sym}${ln}</span><span class="raw-code">${code}</span></div>`;
+      // Code-folding metadata: indent depth (2-space pretty-print) + whether this
+      // line opens a JSON block (trailing { or [). Closers/empties keep their depth.
+      const trimmed = line.replace(/\s+$/, "");
+      const open = trimmed.endsWith("{") || trimmed.endsWith("[");
+      const depth = (line.match(/^ */)[0].length) >> 1;
+      html += `<div class="raw-line ${cls}${open ? " r-open" : ""}" data-d="${depth}"><span class="raw-fold"></span><span class="raw-gutter">${sym}${ln}</span><span class="raw-code">${code}</span></div>`;
     }
   }
   html += "</div>";
@@ -3468,14 +3805,26 @@ function renderSplit(srcText, tgtText) {
       });
     }
   }
-  const colHtml = (rows) => rows.map((r, i) => {
-    if (r.cls === "r-empty") return `<div class="raw-line r-equal"><span class="raw-gutter"></span><span class="raw-code" style="background:var(--surface-3)"></span></div>`;
+  // Per-row fold metadata shared by both columns (so folding hides the same row
+  // indices left and right and the panes stay aligned). The representative text
+  // is taken from whichever side has content on that row.
+  const meta = sLines.map((s, i) => {
+    const t = tLines[i];
+    const rep = (s && s.cls !== "r-empty" ? s.line : (t ? t.line : "")) || "";
+    const trimmed = rep.replace(/\s+$/, "");
+    return { depth: (rep.match(/^ */)[0].length) >> 1, open: trimmed.endsWith("{") || trimmed.endsWith("[") };
+  });
+  // withFold marks openers (the interactive control lives in the Source column);
+  // both columns carry the .raw-fold cell + data-ri so they line up row-for-row.
+  const colHtml = (rows, withFold) => rows.map((r, i) => {
+    const m = meta[i], op = withFold && m.open ? " r-open" : "";
+    if (r.cls === "r-empty") return `<div class="raw-line r-equal${op}" data-ri="${i}" data-d="${m.depth}"><span class="raw-fold"></span><span class="raw-gutter"></span><span class="raw-code" style="background:var(--surface-3)"></span></div>`;
     const code = r.html != null ? r.html : escapeHtml(r.line);
-    return `<div class="raw-line ${r.cls}"><span class="raw-gutter">${i+1}</span><span class="raw-code">${code}</span></div>`;
+    return `<div class="raw-line ${r.cls}${op}" data-ri="${i}" data-d="${m.depth}"><span class="raw-fold"></span><span class="raw-gutter">${i+1}</span><span class="raw-code">${code}</span></div>`;
   }).join("");
   return `<div class="raw-split">
-    <div class="raw-split-pane"><div class="raw-split-head">Source</div><div class="raw-unified">${colHtml(sLines)}</div></div>
-    <div class="raw-split-pane"><div class="raw-split-head">Target</div><div class="raw-unified">${colHtml(tLines)}</div></div>
+    <div class="raw-split-pane"><div class="raw-split-head">Source</div><div class="raw-unified">${colHtml(sLines, true)}</div></div>
+    <div class="raw-split-pane"><div class="raw-split-head">Target</div><div class="raw-unified">${colHtml(tLines, false)}</div></div>
   </div>`;
 }
 
@@ -3496,6 +3845,64 @@ function wireRawScrollSync() {
   };
   a.addEventListener("scroll", mk(a, b), { passive: true });
   b.addEventListener("scroll", mk(b, a), { passive: true });
+}
+
+/* ---- Raw-view code folding — collapse/expand JSON blocks in the diff ----
+ * Folding is computed from per-line indent depth stamped during render. A
+ * collapsed opener hides every following line that is deeper than it, up to
+ * (but not including) its matching close. recompute() is idempotent, so nested
+ * folds compose correctly. Split mode folds both columns by row index together
+ * so the two panes never drift out of alignment. */
+let _rawFoldRoot = null;
+function _rawRecomputeFactory(openerLines, depths, hideFns) {
+  return function recompute() {
+    let hideDepth = null;
+    for (let i = 0; i < openerLines.length; i++) {
+      const d = depths[i];
+      if (hideDepth !== null && d <= hideDepth) hideDepth = null;
+      const hide = hideDepth !== null;
+      hideFns(i, hide);
+      if (!hide && openerLines[i].classList.contains("r-open") && openerLines[i].classList.contains("r-collapsed")) hideDepth = d;
+    }
+  };
+}
+function wireRawFolding(rootEl) {
+  _rawFoldRoot = null;
+  const split = rootEl.querySelector(".raw-split");
+  if (split) {
+    const cols = split.querySelectorAll(".raw-unified");
+    if (cols.length !== 2) return;
+    const src = [].slice.call(cols[0].querySelectorAll(".raw-line"));
+    const tgt = [].slice.call(cols[1].querySelectorAll(".raw-line"));
+    const depths = src.map(el => +el.dataset.d || 0);
+    const recompute = _rawRecomputeFactory(src, depths, (i, hide) => {
+      src[i].classList.toggle("r-fold-hidden", hide);
+      if (tgt[i]) tgt[i].classList.toggle("r-fold-hidden", hide);
+    });
+    src.forEach(el => {
+      if (!el.classList.contains("r-open")) return;
+      const f = el.querySelector(".raw-fold");
+      if (f) f.addEventListener("click", () => { el.classList.toggle("r-collapsed"); recompute(); });
+    });
+    _rawFoldRoot = { openers: src, recompute };
+  } else {
+    const u = rootEl.querySelector(".raw-unified");
+    if (!u) return;
+    const lines = [].slice.call(u.querySelectorAll(".raw-line"));
+    const depths = lines.map(el => +el.dataset.d || 0);
+    const recompute = _rawRecomputeFactory(lines, depths, (i, hide) => lines[i].classList.toggle("r-fold-hidden", hide));
+    lines.forEach(el => {
+      if (!el.classList.contains("r-open")) return;
+      const f = el.querySelector(".raw-fold");
+      if (f) f.addEventListener("click", () => { el.classList.toggle("r-collapsed"); recompute(); });
+    });
+    _rawFoldRoot = { openers: lines, recompute };
+  }
+}
+function rawFoldAll(collapse) {
+  if (!_rawFoldRoot) return;
+  _rawFoldRoot.openers.forEach(el => { if (el.classList.contains("r-open")) el.classList.toggle("r-collapsed", collapse); });
+  _rawFoldRoot.recompute();
 }
 
 function renderRaw() {
@@ -3739,7 +4146,8 @@ function renderView() {
   // Show/hide view-specific controls
   const filterActive = filteredEntries.length !== flatEntries.length;
   document.getElementById("rawToggle").classList.toggle("hidden", viewMode !== "raw");
-  document.getElementById("treeTools").style.visibility = (viewMode === "tree") ? "visible" : "hidden";
+  // Expand/Collapse-all serves the Tree view and the Raw view's JSON folding.
+  document.getElementById("treeTools").style.visibility = (viewMode === "tree" || viewMode === "raw") ? "visible" : "hidden";
   document.getElementById("filterbar").classList.toggle("hidden", viewMode === "raw" || viewMode === "3way");
   // P1-2: gate controls that don't apply to the active view. The change-type
   // legend and the selection bar are only meaningful in Tree/Table; Raw has its
@@ -3794,7 +4202,7 @@ function renderView() {
 
   if (viewMode === "raw") {
     // Raw text diff view — ignores filter (operates on full JSON text)
-    try { resEl.innerHTML = `<div class="raw-view">${renderRaw()}</div>`; wireRawScrollSync(); } catch (e) { resEl.innerHTML = ""; }
+    try { resEl.innerHTML = `<div class="raw-view">${renderRaw()}</div>`; wireRawScrollSync(); wireRawFolding(resEl); } catch (e) { resEl.innerHTML = ""; _rawFoldRoot = null; }
   } else if (filterActive && filteredEntries.length === 0 && flatEntries.length > 0) {
     resEl.innerHTML = `<div class="state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><h3>No matches</h3><p>No changes match the current filter. Try adjusting or clearing it.</p></div>`;
   } else if (viewMode === "tree") {
@@ -3863,6 +4271,7 @@ function _applyDiffResult(rows, precLost) {
 // After a successful compare the editors collapse so the comparison gets the
 // full viewport; a slim summary bar offers a one-click way back to editing.
 function collapseInputs(total) {
+  exitAllFullscreen();   // a full-screen pane must not linger once inputs fold away
   const panes = document.querySelector(".panes");
   const bar = document.getElementById("inputsBar");
   if (!panes || !bar) return;
@@ -4502,6 +4911,7 @@ function initPaneResizer() {
 initPaneResizer();
 
 document.getElementById("expandAll").addEventListener("click", () => {
+  if (viewMode === "raw") { rawFoldAll(false); return; }   // Raw view: unfold every JSON block
   if (_virtRoot && _virtScrollEl) {
     // T20: virtual tree — add all container ids to expanded set
     function collectIds(node) {
@@ -4514,6 +4924,7 @@ document.getElementById("expandAll").addEventListener("click", () => {
   }
 });
 document.getElementById("collapseAll").addEventListener("click", () => {
+  if (viewMode === "raw") { rawFoldAll(true); return; }    // Raw view: fold every JSON block
   if (_virtRoot && _virtScrollEl) {
     // T20: virtual tree — clear all expanded ids (fully collapsed)
     _treeExpandedIds.clear();
@@ -6414,6 +6825,8 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
     // E-1: close find bar first (before closing other overlays).
     if (_find.active) { findClose(); return; }
+    // Rich editors: exit a full-screen pane before any other overlay.
+    if (exitAllFullscreen()) return;
     closeModal(); closeDrawer(); closeSaveModal(); closeHelpModal(); toggleShortcuts(false);
   }
   // "?" opens the shortcuts help (when not typing in a field)

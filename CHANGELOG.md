@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [3.9] — 2026-06-12
+
+Rich editors — per-pane **Code / Tree** views, a collapsible JSON tree viewer, **full-screen editing**, and **code folding in the Raw diff view**. UI-only change (no DIFF-CORE / engine changes). 701 JS tests green; `index.html` regenerated from `json_compare.html` (parity guard green).
+
+### Added
+
+- **Per-pane Code / Tree toggle** — every input pane (Source, Target, Base) gains a `Code` / `Tree` segmented control in its header (`.pane-modes` / `.pm-btn`). `Code` is the existing editable, syntax-highlighted textarea editor; `Tree` is a new read-only, syntax-coloured, **collapsible** JSON view. State lives on the pane via the `mode-tree` / `mode-code` classes.
+
+- **Collapsible JSON tree viewer (`renderJSONTree` / `_jvNode`)** — a zero-dependency recursive renderer that turns a parsed JSON value into proper-looking JSON HTML with fold chevrons on every object/array, a collapsed `{ … } N keys` / `[ … ] N items` preview, trailing commas, and `.jv-val.t-{string,number,boolean,null}` syntax colouring. Each pane's tree has its own **Expand all / Collapse all** buttons and a foldable-node count in the status line. Clicking a node header folds/unfolds it. Parsing uses the active lenient parser (`_getParser`), so JSONC/JSON5/NDJSON inputs render too; invalid JSON shows a friendly parse-error message with a one-click **Switch to Code** button. Documents larger than 500 000 chars show an opt-in **Render tree anyway** prompt to protect the browser. The tree auto-refreshes after any programmatic edit (Format / Sort / Minify / paste / file-load) while a pane is in Tree mode (hooked into `refreshHighlight` → `_maybeRefreshPaneTree`).
+
+- **Full-screen editing (`togglePaneFullscreen` / `exitAllFullscreen`)** — a ⤢ icon button in each pane header expands that pane to fill the viewport (`.pane.fullscreen`, `body.pane-maximized`) for focused editing of one document at a time, in either Code or Tree view. Toggle off via the icon or <kbd>Esc</kbd>. Only one pane is full-screen at a time; running a Compare exits full-screen automatically.
+
+- **Code folding in the Raw diff view (`wireRawFolding` / `rawFoldAll`)** — the Raw results view now stamps every line with its JSON indent depth and marks block-opening lines (`r-open`), adding a fold control in the gutter. Folding a block hides its nested lines; in **split** mode both columns fold by shared row index so the two panes stay perfectly aligned. The Tree view's **Expand all / Collapse all** buttons drive Raw folding when the Raw view is active. Folding is idempotent and composes for nested blocks.
+
+- **`tests/tree-view.test.js`** — 8 new unit tests for the collapsible renderer (leaf colouring + HTML escaping, object/array containers with counts, collapsed-preview markup, empty `{}` / `[]`, proper-JSON comma placement, nested containers).
+
+- **Help &amp; About** — new "Editing JSON — Code &amp; Tree views" section; the Raw view card now documents gutter folding.
+
 ## [3.8] — 2026-06-11
 
 Phase G-3 — Schema-aware diff. **DIFF-CORE change** (mirrored across JS module, HTML inline copy, and Python CLI). 693 JS tests green; Python logic verified on all 16 parity fixtures.
